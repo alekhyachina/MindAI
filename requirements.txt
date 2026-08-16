@@ -1,0 +1,53 @@
+# --- Orchestration & state ---
+# Verified by installing 1.2.11 in a clean venv and running this project's
+# exact StateGraph/add_conditional_edges/invoke() pattern end-to-end.
+# langchain-core is a transitive dependency of langgraph (not imported
+# directly by this project) — left unpinned so pip resolves whichever
+# version langgraph 1.2.11 actually requires (>=1.4.7).
+langgraph==1.2.11
+
+# --- LLM provider (OpenAI) ---
+openai==1.58.1
+# 0.8.0 has no Python 3.14 wheel and fails building from source (needs a
+# Rust toolchain); 0.12.0 is the oldest release with a prebuilt wheel.
+tiktoken==0.12.0
+
+# --- Vector database ---
+qdrant-client==1.12.1
+
+# --- Embeddings & hybrid search (dense + sparse BM25) ---
+# 0.4.2 does not exist on PyPI (an earlier pin error); 0.6.1 confirmed
+# downloadable as a pure-Python wheel and API-compatible with this code.
+fastembed==0.6.1
+
+# --- Reranking (cross-encoder, local fallback) ---
+sentence-transformers==3.3.1
+# 2.5.1 has no Python 3.14 wheel; 2.9.0 is the oldest release that does.
+torch==2.9.0
+
+# --- Reranking (Cohere hosted API, used when MINDAI_COHERE_API_KEY is set) ---
+# Verified: pure-Python wheel, installs cleanly against this file's other
+# pins (only new transitive deps are fastavro and types-requests), and
+# cohere.ClientV2().rerank(model=, query=, documents=, top_n=) matches
+# reranker.py's usage exactly on this version.
+cohere==7.0.8
+
+# --- AST-aware source parsing ---
+# 0.23.2 has no Python 3.14 wheel (compiles from source, needs a C
+# toolchain); 0.25.2 has a prebuilt wheel and satisfies tree-sitter-
+# language-pack's tree-sitter>=0.23.2 requirement.
+tree-sitter==0.25.2
+tree-sitter-language-pack==0.6.1
+
+# --- Evaluation harness (LLM-as-judge) ---
+# Verified by installing 4.1.8 in a clean venv and running this project's
+# exact LLMTestCase/metrics/evaluate/assert_test pattern end-to-end.
+deepeval==4.1.8
+
+# --- Utilities ---
+# deepeval 4.1.8 requires pydantic>=2.11.7; bumped from an earlier pin
+# that predated that constraint.
+pydantic==2.13.4
+# deepeval 4.1.8 requires python-dotenv>=1.1.1.
+python-dotenv==1.1.1
+rich==13.9.4

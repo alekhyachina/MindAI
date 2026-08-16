@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/*
+  MindAI design tokens — deep indigo/violet, not neutral black or amber.
+  Dark-first: this product's identity is a precision code-intelligence
+  tool. The ground carries a cool indigo bias rather than pure neutral,
+  and the accent system uses two hues (violet primary, cyan secondary)
+  so citations and "verified" signals read as a distinct layer from
+  ordinary interactive elements.
+*/
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-ground: #0a0a14;
+  --color-surface: #13132866;
+  --color-surface-solid: #15152a;
+  --color-surface-raised: #1c1c38;
+  --color-border: #26264a;
+  --color-border-bright: #3a3a6e;
+  --color-text: #f1effa;
+  --color-text-muted: #8886a3;
+  --color-accent: #8b5cf6;
+  --color-accent-dim: #6d3fd6;
+  --color-accent-wash: rgba(139, 92, 246, 0.14);
+  --color-accent-2: #22d3ee;
+  --color-accent-2-wash: rgba(34, 211, 238, 0.12);
+  --color-danger: #f0708a;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+
+* {
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Ambient hero glow — a soft radial violet bloom behind the landing
+   hero, anchored to a container rather than the whole page so it never
+   bleeds into other views. */
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgba(139, 92, 246, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 85% 15%, rgba(34, 211, 238, 0.10), transparent 70%);
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, #a78bfa 0%, #8b5cf6 45%, #22d3ee 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

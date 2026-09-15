@@ -1,0 +1,976 @@
+<title>MindAI Field Manual</title>
+<style>
+  :root{
+    --ground:#F6F8F8; --surface:#FFFFFF; --surface-2:#EFF3F3;
+    --ink:#0E1817; --ink-2:#2C3E3C; --muted:#566866; --rule:#D3DEDC;
+    --accent:#0B6E75; --accent-soft:#E0F0F0; --warn:#9C4A21; --warn-soft:#F7EAE3;
+    --ok:#2F6B4F;
+    --serif:"Iowan Old Style",Charter,"Bitstream Charter",Palatino,"Palatino Linotype",Georgia,serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1312; --surface:#121D1C; --surface-2:#182524;
+      --ink:#E2ECEA; --ink-2:#C3D2D0; --muted:#8CA19E; --rule:#263634;
+      --accent:#45B9C1; --accent-soft:#12302F; --warn:#DD8B5E; --warn-soft:#2C1C13;
+      --ok:#6FBF95;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1312; --surface:#121D1C; --surface-2:#182524;
+    --ink:#E2ECEA; --ink-2:#C3D2D0; --muted:#8CA19E; --rule:#263634;
+    --accent:#45B9C1; --accent-soft:#12302F; --warn:#DD8B5E; --warn-soft:#2C1C13;
+    --ok:#6FBF95;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:var(--serif); font-size:17px; line-height:1.62;
+    margin:0; padding:0; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px 120px;
+        display:grid; grid-template-columns:minmax(0,1fr); gap:0}
+  @media(min-width:1080px){
+    .wrap{grid-template-columns:210px minmax(0,1fr); gap:56px; padding-top:0}
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead{grid-column:1/-1; border-bottom:2px solid var(--ink); padding:56px 0 26px; margin-bottom:46px}
+  .kicker{font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+          color:var(--accent); margin:0 0 18px}
+  h1{font-size:clamp(2.6rem,6vw,4rem); line-height:1.02; margin:0 0 16px; font-weight:600;
+     letter-spacing:-.022em; text-wrap:balance}
+  .standfirst{font-size:1.16rem; color:var(--ink-2); max-width:62ch; margin:0 0 26px}
+  .meta{display:flex; flex-wrap:wrap; gap:10px 26px; font-family:var(--mono); font-size:11.5px;
+        color:var(--muted); letter-spacing:.04em}
+  .meta b{color:var(--ink); font-weight:500}
+
+  /* ---------- toc rail ---------- */
+  .toc{display:none}
+  @media(min-width:1080px){
+    .toc{display:block; position:sticky; top:0; align-self:start; padding-top:8px; max-height:100vh; overflow-y:auto}
+    .toc ol{list-style:none; margin:0; padding:0 0 60px}
+    .toc a{display:flex; gap:9px; font-family:var(--mono); font-size:11.5px; line-height:1.45;
+           color:var(--muted); text-decoration:none; padding:5px 0; border-left:2px solid transparent; padding-left:11px}
+    .toc a:hover,.toc a:focus-visible{color:var(--accent); border-left-color:var(--accent)}
+    .toc .n{color:var(--rule)}
+  }
+
+  /* ---------- sections w/ line-number rail ---------- */
+  main{grid-column:1/-1; max-width:70ch}
+  @media(min-width:1080px){ main{grid-column:2} }
+  section{padding-top:14px; margin-bottom:56px; scroll-margin-top:20px}
+  h2{font-size:1.95rem; line-height:1.12; letter-spacing:-.017em; font-weight:600;
+     margin:0 0 6px; text-wrap:balance}
+  h2 .ln{font-family:var(--mono); font-size:.72rem; font-weight:400; color:var(--accent);
+         letter-spacing:.08em; display:block; margin-bottom:9px}
+  h3{font-size:1.17rem; font-weight:600; margin:34px 0 8px; letter-spacing:-.008em}
+  h4{font-family:var(--mono); font-size:.79rem; letter-spacing:.09em; text-transform:uppercase;
+     color:var(--muted); font-weight:500; margin:26px 0 8px}
+  p{margin:0 0 15px; max-width:66ch}
+  .lede{font-size:1.06rem; color:var(--ink-2); border-left:2px solid var(--accent);
+        padding-left:17px; margin:0 0 26px}
+  ul,ol{margin:0 0 15px; padding-left:22px; max-width:66ch}
+  li{margin-bottom:7px}
+  strong{font-weight:600}
+  code{font-family:var(--mono); font-size:.845em; background:var(--surface-2);
+       padding:1px 5px; border-radius:3px; color:var(--ink)}
+  a{color:var(--accent)}
+
+  /* ---------- components ---------- */
+  .why{background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--accent);
+       border-radius:3px; padding:16px 19px; margin:20px 0}
+  .why h4{margin:0 0 7px; color:var(--accent)}
+  .why p:last-child{margin-bottom:0}
+  .flag{background:var(--warn-soft); border:1px solid var(--rule); border-left:3px solid var(--warn);
+        border-radius:3px; padding:16px 19px; margin:20px 0}
+  .flag h4{margin:0 0 7px; color:var(--warn)}
+  .flag p:last-child{margin-bottom:0}
+
+  .scroll{overflow-x:auto; margin:22px 0; border:1px solid var(--rule); border-radius:3px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-family:var(--sans); font-size:14px; min-width:520px}
+  th{text-align:left; font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+     color:var(--muted); font-weight:500; padding:11px 14px; border-bottom:1px solid var(--rule); white-space:nowrap}
+  td{padding:11px 14px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+  tr:last-child td{border-bottom:none}
+  td b{color:var(--ink); font-weight:600}
+  td.num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--ink)}
+
+  figure{margin:28px 0; padding:0}
+  figure svg{display:block; width:100%; max-width:100%; height:auto; color:var(--ink)}
+  .figbox{background:var(--surface); border:1px solid var(--rule); border-radius:3px; padding:22px 18px; overflow-x:auto}
+  figcaption{font-family:var(--sans); font-size:12.5px; color:var(--muted); margin-top:11px; line-height:1.5; max-width:66ch}
+  figcaption b{color:var(--ink-2); font-weight:600}
+
+  .qa{border-top:1px solid var(--rule); padding:19px 0}
+  .qa:last-of-type{border-bottom:1px solid var(--rule)}
+  .qa .q{font-weight:600; margin:0 0 8px; color:var(--ink)}
+  .qa .q::before{content:"Q "; font-family:var(--mono); font-size:.76em; color:var(--accent); letter-spacing:.08em}
+  .qa p:last-child{margin-bottom:0}
+
+  /* six stats — 3 columns divides exactly, so no empty cell shows the rule colour */
+  .stat-row{display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+            background:var(--rule); border:1px solid var(--rule); border-radius:3px; margin:24px 0; overflow:hidden}
+  @media(max-width:460px){ .stat-row{grid-template-columns:repeat(2,1fr)} }
+  .stat{background:var(--surface); padding:15px 16px}
+  .stat .v{font-family:var(--mono); font-size:1.32rem; font-variant-numeric:tabular-nums;
+           color:var(--accent); line-height:1.1; margin-bottom:5px}
+  .stat .k{font-family:var(--sans); font-size:11.5px; color:var(--muted); line-height:1.35}
+
+  .end{border-top:2px solid var(--ink); margin-top:60px; padding-top:20px;
+       font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+
+  @media print{
+    :root{--ground:#fff;--surface:#fff;--surface-2:#F2F5F5;--ink:#000;--ink-2:#1c2b29;
+          --muted:#4a5a58;--rule:#c2cfcd;--accent:#0A5A60;--accent-soft:#E6F1F1;
+          --warn:#8A3F1B;--warn-soft:#F8EFE9}
+    body{font-size:10.5pt; line-height:1.5}
+    .toc{display:none}
+    .wrap{display:block; max-width:100%; padding:0}
+    main{max-width:100%}
+    section{page-break-inside:auto; margin-bottom:26px}
+    h2{page-break-after:avoid; font-size:16pt; margin-top:14pt}
+    h3,h4{page-break-after:avoid}
+    figure,.scroll,.stat-row{page-break-inside:avoid}
+    .why,.flag,.qa{page-break-inside:auto; orphans:3; widows:3}
+    p,li{orphans:3; widows:3}
+    .masthead{padding-top:0; margin-bottom:24px}
+    h1{font-size:30pt}
+    a{color:var(--accent); text-decoration:none}
+    @page{margin:15mm 14mm}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Field Manual · Graph-RAG over source code</p>
+  <h1>MindAI Field Manual</h1>
+  <p class="standfirst">A complete walkthrough of a retrieval system that answers questions about any GitHub
+  repository with line-level citations — and refuses to answer rather than invent one. Every design decision,
+  every alternative rejected, and the numbers measured on the running system.</p>
+  <div class="meta">
+    <span><b>Stack</b> LangGraph · FastAPI · React · Qdrant</span>
+    <span><b>Models</b> OpenAI · Cohere</span>
+    <span><b>Languages parsed</b> 15</span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#idea"><span class="n">01</span> The core idea</a></li>
+    <li><a href="#arch"><span class="n">02</span> System architecture</a></li>
+    <li><a href="#ingest"><span class="n">03</span> Ingestion pipeline</a></li>
+    <li><a href="#query"><span class="n">04</span> Query pipeline</a></li>
+    <li><a href="#hybrid"><span class="n">05</span> Hybrid retrieval &amp; RRF</a></li>
+    <li><a href="#rerank"><span class="n">06</span> Reranking</a></li>
+    <li><a href="#graph"><span class="n">07</span> Graph expansion</a></li>
+    <li><a href="#trust"><span class="n">08</span> Citations &amp; refusal</a></li>
+    <li><a href="#stack"><span class="n">09</span> Tech stack &amp; why</a></li>
+    <li><a href="#stores"><span class="n">10</span> Data stores</a></li>
+    <li><a href="#api"><span class="n">11</span> Backend &amp; frontend</a></li>
+    <li><a href="#eval"><span class="n">12</span> Evaluation</a></li>
+    <li><a href="#perf"><span class="n">13</span> Measured performance</a></li>
+    <li><a href="#deploy"><span class="n">14</span> Deployment readiness</a></li>
+    <li><a href="#interview"><span class="n">15</span> Interview questions</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- 01 -->
+<section id="idea">
+  <h2><span class="ln">§ 01</span>The core idea</h2>
+  <p class="lede">Ask a question about a codebase in plain English. Get an answer where every claim points at
+  a real file and line number — or get told the system doesn't know.</p>
+
+  <p>General chatbots answer questions about code badly for one specific reason: they have never seen
+  <em>your</em> repository. They reply from a blurry memory of similar code on the internet, and the answer
+  looks right while naming functions that do not exist. For a developer trying to understand an unfamiliar
+  codebase, a confident wrong answer is worse than no answer, because verifying it costs more than reading
+  the code would have.</p>
+
+  <p>MindAI fixes this by never letting the model answer from memory. The repository is cloned, cut into
+  meaningful pieces, and stored in a searchable index. When a question arrives, the system finds the pieces
+  most likely to contain the answer and hands <em>only those</em> to the model, with an instruction: answer
+  using this material and cite the file and line for every claim. If nothing relevant is found, or the model
+  cannot produce a citation, the system refuses.</p>
+
+  <h3>The 30-second version</h3>
+  <p>&ldquo;It's a Graph-RAG system for codebases. It clones a repo, uses tree-sitter to split the source at
+  function and class boundaries instead of arbitrary token windows, and indexes each chunk twice — a dense
+  vector for meaning and a sparse BM25 vector for exact keywords. At query time it searches both, fuses the
+  rankings, reranks with a cross-encoder, and for questions about how code flows it expands to callers and
+  callees using a call graph built at ingest. Answers must cite <code>path:line</code>, and low confidence
+  triggers a refusal instead of a guess.&rdquo;</p>
+
+  <div class="why">
+    <h4>Why this matters in an interview</h4>
+    <p>Most RAG projects are &ldquo;chat with your PDF&rdquo; with a vector database bolted on. The three
+    things that make this one different are all defensible engineering choices: <b>structure-aware chunking</b>,
+    <b>hybrid retrieval</b>, and <b>refusal over hallucination</b>. Each is discussed in its own section below,
+    with the alternative that was rejected.</p>
+  </div>
+</section>
+
+<!-- 02 -->
+<section id="arch">
+  <h2><span class="ln">§ 02</span>System architecture</h2>
+  <p class="lede">Two processes you run, four services you call. Almost nothing computes locally.</p>
+
+  <p>The system splits into a thin web layer and a pipeline layer. The web layer handles accounts, history,
+  and HTTP. The pipeline layer does retrieval and generation, and it was written to run standalone from the
+  command line before the web UI existed — which is why <code>ingestion.py</code> and <code>graph.py</code>
+  can still be driven directly without a server.</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 760 330" role="img" aria-label="Request flow from browser through FastAPI and the LangGraph pipeline out to OpenAI, Cohere and Qdrant Cloud, with SQLite and call-graph files held locally">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#0B6E75"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace,Menlo,monospace" font-size="11.5">
+
+          <!-- browser -->
+          <rect x="8" y="118" width="118" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="67" y="141" text-anchor="middle" font-size="12">Browser</text>
+          <text x="67" y="157" text-anchor="middle" font-size="10" opacity=".62">React · :5173</text>
+
+          <line x1="126" y1="146" x2="182" y2="146" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+          <text x="154" y="138" text-anchor="middle" font-size="9.5" opacity=".62">/api</text>
+
+          <!-- fastapi -->
+          <rect x="182" y="96" width="132" height="100" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="248" y="120" text-anchor="middle" font-size="12">FastAPI</text>
+          <text x="248" y="137" text-anchor="middle" font-size="9.5" opacity=".62">auth · repos</text>
+          <text x="248" y="151" text-anchor="middle" font-size="9.5" opacity=".62">conversations</text>
+          <text x="248" y="165" text-anchor="middle" font-size="9.5" opacity=".62">chat (SSE)</text>
+          <text x="248" y="184" text-anchor="middle" font-size="9.5" opacity=".62">:8001</text>
+
+          <line x1="314" y1="146" x2="370" y2="146" stroke="#0B6E75" stroke-width="1.6" marker-end="url(#ar-a)"/>
+          <text x="342" y="138" text-anchor="middle" font-size="9.5" fill="#0B6E75">invoke</text>
+
+          <!-- pipeline -->
+          <rect x="370" y="96" width="140" height="100" rx="3" fill="none" stroke="#0B6E75" stroke-width="1.8"/>
+          <text x="440" y="120" text-anchor="middle" font-size="12" fill="#0B6E75">LangGraph</text>
+          <text x="440" y="136" text-anchor="middle" font-size="9.5" opacity=".72">rewrite → retrieve</text>
+          <text x="440" y="150" text-anchor="middle" font-size="9.5" opacity=".72">→ rerank → expand</text>
+          <text x="440" y="164" text-anchor="middle" font-size="9.5" opacity=".72">→ generate</text>
+          <text x="440" y="183" text-anchor="middle" font-size="9.5" opacity=".62">graph.py</text>
+
+          <!-- external -->
+          <line x1="510" y1="122" x2="592" y2="52" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+          <line x1="510" y1="146" x2="592" y2="122" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+          <line x1="510" y1="170" x2="592" y2="192" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+
+          <rect x="592" y="26" width="160" height="52" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="672" y="47" text-anchor="middle" font-size="11">OpenAI</text>
+          <text x="672" y="63" text-anchor="middle" font-size="9.5" opacity=".62">embed · generate</text>
+
+          <rect x="592" y="96" width="160" height="52" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="672" y="117" text-anchor="middle" font-size="11">Cohere</text>
+          <text x="672" y="133" text-anchor="middle" font-size="9.5" opacity=".62">rerank-v3.5</text>
+
+          <rect x="592" y="166" width="160" height="52" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="672" y="187" text-anchor="middle" font-size="11">Qdrant Cloud</text>
+          <text x="672" y="203" text-anchor="middle" font-size="9.5" opacity=".62">vectors</text>
+
+          <text x="672" y="238" text-anchor="middle" font-size="9.5" opacity=".55">network — not your CPU</text>
+          <line x1="592" y1="246" x2="752" y2="246" stroke="currentColor" stroke-width="1" opacity=".3" stroke-dasharray="3 3"/>
+
+          <!-- local stores -->
+          <line x1="248" y1="196" x2="248" y2="252" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+          <rect x="168" y="252" width="160" height="50" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <text x="248" y="272" text-anchor="middle" font-size="11">SQLite</text>
+          <text x="248" y="288" text-anchor="middle" font-size="9.5" opacity=".62">users · chat history</text>
+
+          <line x1="440" y1="196" x2="440" y2="252" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+          <rect x="360" y="252" width="160" height="50" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <text x="440" y="272" text-anchor="middle" font-size="11">call_graphs/</text>
+          <text x="440" y="288" text-anchor="middle" font-size="9.5" opacity=".62">JSON per repo</text>
+
+          <text x="8" y="296" font-size="9.5" opacity=".55">dashed = local disk</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>Where work actually happens.</b> The teal path is the pipeline. Everything to the right of it
+    is a network call; the two dashed boxes are the only things written to local disk — and both become a problem
+    in deployment (§14).</figcaption>
+  </figure>
+
+  <h3>Folder by folder</h3>
+  <p>The root holds the pipeline — these four files are the actual product, and each runs standalone from the
+  command line with no web server involved. Everything else wraps them.</p>
+
+  <div class="scroll"><table>
+    <tr><th>Path</th><th>What lives there</th><th>Responsibility</th></tr>
+    <tr><td><code>ingestion.py</code></td><td>Root · pipeline</td><td>Clone, filter, chunk with tree-sitter, embed, upsert to Qdrant, build the call graph</td></tr>
+    <tr><td><code>graph.py</code></td><td>Root · pipeline</td><td>The LangGraph pipeline — all five nodes and the routing between them</td></tr>
+    <tr><td><code>dense_embeddings.py</code></td><td>Root · provider</td><td>OpenAI embedding provider, batched and concurrent</td></tr>
+    <tr><td><code>reranker.py</code></td><td>Root · provider</td><td>Cohere rerank provider, interface-compatible with the local cross-encoder</td></tr>
+    <tr><td><code>semantic_chunking.py</code></td><td>Root · provider</td><td>Alternative embedding-based chunker — present, switched off</td></tr>
+    <tr><td><code>eval.py</code></td><td>Root · quality</td><td>DeepEval harness: faithfulness, relevancy, recall</td></tr>
+    <tr><td><code>backend/</code></td><td>Web layer</td><td><code>main.py</code> routes · <code>auth.py</code> hashing and JWTs · <code>db.py</code> engine and session · <code>models.py</code> the four tables · <code>schemas.py</code> request validation · <code>pipeline_store.py</code> shared Qdrant client and call-graph files</td></tr>
+    <tr><td><code>frontend/</code></td><td>Web layer</td><td><code>src/pages/</code> the four routes · <code>src/components/</code> chat bubbles, citations, sidebar, auth guard · <code>src/lib/</code> API client and auth context</td></tr>
+    <tr><td><code>call_graphs/</code></td><td>Generated data</td><td>One JSON file per ingested repo — who calls whom</td></tr>
+    <tr><td><code>qdrant_storage/</code></td><td>Generated data</td><td>Local vector store. Dormant when running against Qdrant Cloud</td></tr>
+    <tr><td><code>mindai.db</code></td><td>Generated data</td><td>SQLite — users, repos, conversations, messages</td></tr>
+    <tr><td><code>.env</code></td><td>Configuration</td><td>Every secret and switch. Never committed</td></tr>
+  </table></div>
+
+  <h3>Why there is a <code>.env</code> file at all</h3>
+  <p>Three separate problems, one solution.</p>
+  <ul>
+    <li><b>Secrets must not be in source code.</b> An API key committed to git is public the moment the repo
+    is pushed, and stays in history even after deletion. <code>.env</code> is listed in
+    <code>.gitignore</code>, so keys live on the machine and never in the repository.</li>
+    <li><b>Settings differ per environment.</b> Your laptop, a teammate's laptop, and production each need
+    different databases and endpoints. Reading them from the environment means the same code runs
+    everywhere with no edits.</li>
+    <li><b>Reconfiguring should not require a code change.</b> Moving the vector store to the cloud or
+    switching the reranker is one line in this file — no deploy of new code.</li>
+  </ul>
+
+  <p>The file is loaded at startup by <code>load_dotenv()</code>, which copies its contents into the process
+  environment. Order matters: it runs <em>before</em> any project module is imported, because several modules
+  read their configuration at import time and would otherwise see nothing.</p>
+
+  <h3>What each key does</h3>
+  <div class="scroll"><table>
+    <tr><th>Key</th><th>Used by</th><th>What it controls</th></tr>
+    <tr><td><code>OPENAI_API_KEY</code></td><td>Embeddings + generation</td><td><b>Required.</b> Pays for dense vectors, query rewriting, and answer generation. Nothing works without it</td></tr>
+    <tr><td><code>MINDAI_GENERATION_MODEL</code></td><td>generate node</td><td>Which model writes the answer. Currently <code>gpt-4o-mini</code> — cheap, and the hard work was already done by retrieval</td></tr>
+    <tr><td><code>MINDAI_REWRITE_MODEL</code></td><td>rewrite node</td><td>Which model rewrites the question for retrieval. A small model is fine for this</td></tr>
+    <tr><td><code>MINDAI_JUDGE_MODEL</code></td><td><code>eval.py</code> only</td><td>The grader in the eval harness — <code>gpt-4o</code>, a stronger model, because a weak judge produces meaningless scores. Never used at request time</td></tr>
+    <tr><td><code>MINDAI_JWT_SECRET</code></td><td><code>backend/auth.py</code></td><td><b>Required.</b> Signs login tokens. Anyone holding this can forge any user's session. Changing it logs everyone out</td></tr>
+    <tr><td><code>DATABASE_URL</code></td><td><code>backend/db.py</code></td><td>Where relational data lives. <code>sqlite:///./mindai.db</code> today; a Postgres URL here is the entire production migration</td></tr>
+    <tr><td><code>QDRANT_URL</code></td><td>Vector store</td><td><b>A switch.</b> Set → cloud mode over HTTP, concurrent. Unset → local on-disk mode, serialised behind a lock</td></tr>
+    <tr><td><code>QDRANT_API_KEY</code></td><td>Vector store</td><td>Authenticates to Qdrant Cloud. Ignored by an unauthenticated local container</td></tr>
+    <tr><td><code>MINDAI_QDRANT_PATH</code></td><td>Vector store</td><td>Where local vectors are written. Only consulted when <code>QDRANT_URL</code> is unset</td></tr>
+    <tr><td><code>MINDAI_COHERE_API_KEY</code></td><td>rerank node</td><td><b>A switch.</b> Present → hosted Cohere reranking. Absent → falls back to the local cross-encoder, which is far slower on CPU</td></tr>
+    <tr><td><code>MINDAI_CHUNK_STRATEGY</code></td><td><code>ingestion.py</code></td><td><b>A switch.</b> <code>ast</code> → syntactic boundaries. <code>semantic</code> → embedding-derived boundaries. Changing it requires re-ingesting</td></tr>
+    <tr><td><code>MINDAI_CALL_GRAPH_DIR</code></td><td><code>pipeline_store.py</code></td><td>Where call-graph JSON is written</td></tr>
+    <tr><td><code>MINDAI_LLM_BASE_URL</code></td><td>Optional, disabled</td><td>Points generation at any OpenAI-compatible endpoint — Gemini, a local model. Commented out after a free-tier quota ran out</td></tr>
+  </table></div>
+
+  <div class="why">
+    <h4>The distinction worth making in an interview</h4>
+    <p>Most of these keys are <em>values</em> — a model name, a file path. Three are <b>switches</b>:
+    <code>QDRANT_URL</code>, <code>MINDAI_COHERE_API_KEY</code>, and <code>MINDAI_CHUNK_STRATEGY</code>. Their
+    mere presence changes which implementation the code selects at startup, because each sits behind a
+    provider interface with two implementations. That is what makes local-versus-cloud a configuration
+    decision rather than a rewrite.</p>
+  </div>
+
+  <div class="flag">
+    <h4>Missing from this project</h4>
+    <p>There is no <code>.env.example</code> — a committed template listing every key with placeholder values,
+    so a new developer knows what to fill in. The README instructs you to copy one, but the file was deleted.
+    Anyone cloning this repository cannot follow its own setup instructions.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section id="ingest">
+  <h2><span class="ln">§ 03</span>Ingestion pipeline</h2>
+  <p class="lede">Turning a GitHub URL into a searchable index. Runs once per repository, in the background.</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 760 260" role="img" aria-label="Ingestion flow: clone, filter, chunk with tree-sitter, then embed dense and sparse in parallel before upserting to Qdrant, with a call graph written separately">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace,Menlo,monospace" font-size="11">
+
+          <rect x="6" y="60" width="104" height="54" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="58" y="82" text-anchor="middle">clone</text>
+          <text x="58" y="98" text-anchor="middle" font-size="9" opacity=".6">--depth 1</text>
+
+          <line x1="110" y1="87" x2="146" y2="87" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <rect x="146" y="60" width="104" height="54" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="198" y="82" text-anchor="middle">filter</text>
+          <text x="198" y="98" text-anchor="middle" font-size="9" opacity=".6">drop vendored</text>
+
+          <line x1="250" y1="87" x2="286" y2="87" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <rect x="286" y="54" width="118" height="66" rx="3" fill="none" stroke="#0B6E75" stroke-width="1.8"/>
+          <text x="345" y="76" text-anchor="middle" fill="#0B6E75">tree-sitter</text>
+          <text x="345" y="92" text-anchor="middle" font-size="9" opacity=".7">chunk at fn /</text>
+          <text x="345" y="105" text-anchor="middle" font-size="9" opacity=".7">class bounds</text>
+
+          <!-- fork to two embedders -->
+          <path d="M404 74 L440 74 L440 34 L476 34" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)"/>
+          <path d="M404 100 L440 100 L440 140 L476 140" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <rect x="476" y="10" width="150" height="48" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="551" y="30" text-anchor="middle" font-size="10.5">dense · OpenAI</text>
+          <text x="551" y="45" text-anchor="middle" font-size="9" opacity=".6">1536-dim · network</text>
+
+          <rect x="476" y="116" width="150" height="48" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="551" y="136" text-anchor="middle" font-size="10.5">sparse · BM25</text>
+          <text x="551" y="151" text-anchor="middle" font-size="9" opacity=".6">local CPU</text>
+
+          <path d="M626 34 L662 34 L662 74 L698 74" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M626 140 L662 140 L662 100 L698 100" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <line x1="662" y1="87" x2="700" y2="87" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <rect x="700" y="60" width="56" height="54" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="728" y="83" text-anchor="middle" font-size="10">Qdrant</text>
+          <text x="728" y="98" text-anchor="middle" font-size="9" opacity=".6">upsert</text>
+
+          <text x="551" y="88" text-anchor="middle" font-size="9" opacity=".55">run in parallel</text>
+
+          <!-- call graph branch -->
+          <path d="M345 120 L345 190 L436 190" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+          <rect x="436" y="166" width="190" height="48" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <text x="531" y="186" text-anchor="middle" font-size="10.5">call graph → JSON</text>
+          <text x="531" y="201" text-anchor="middle" font-size="9" opacity=".6">who calls whom</text>
+
+          <text x="6" y="238" font-size="9.5" opacity=".55">Metadata carried on every chunk: file path · symbol name · line range · imports · calls</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>One pass, two indexes, one side product.</b> Dense and sparse embedding run on separate
+    threads because one waits on the network and the other uses the CPU — genuinely independent work, so the
+    local pass costs nothing on the clock.</figcaption>
+  </figure>
+
+  <h3>Step by step</h3>
+  <ol>
+    <li><b>Shallow clone.</b> <code>git clone --depth 1 --single-branch</code> into a temp directory, deleted
+    in a <code>finally</code> block so a failure never leaks disk.</li>
+    <li><b>Filter noise.</b> Drop <code>node_modules</code>, lock files, binaries, and anything over 1 MB —
+    almost always generated or vendored, and pure cost to parse.</li>
+    <li><b>Chunk with tree-sitter.</b> Parse each file into a syntax tree and emit one chunk per function,
+    class, method, or interface. Files in unsupported languages fall back to overlapping line windows so
+    nothing is silently dropped.</li>
+    <li><b>Attach metadata.</b> Each chunk carries its file path, symbol name, symbol type, language, exact
+    line range, the identifiers it calls, and the imports of its file.</li>
+    <li><b>Cap size.</b> Anything above 6,000 tokens is split in half recursively — a single class can
+    otherwise exceed the embedding API's input limit and fail the whole batch.</li>
+    <li><b>Embed twice.</b> Dense vectors from OpenAI, sparse BM25 vectors locally, in parallel.</li>
+    <li><b>Upsert</b> into a Qdrant collection named for that repo, and write the call graph to JSON.</li>
+  </ol>
+
+  <div class="why">
+    <h4>Why AST chunking instead of fixed token windows</h4>
+    <p>Fixed windows cut wherever the counter runs out — usually mid-function. You get a chunk that starts
+    halfway through one function and ends halfway through the next, so the retrieved text answers nothing
+    completely and the line range points at a fragment.</p>
+    <p>Cutting at syntactic boundaries means a retrieved chunk is a <em>whole</em> function: it has a name, a
+    signature, a body, and an exact line range you can cite. It is also why the call graph is possible at all —
+    you cannot say &ldquo;this function calls that one&rdquo; if your chunks are not functions.</p>
+  </div>
+
+  <div class="why">
+    <h4>Why imports are attached at file level</h4>
+    <p>A function's own line range cannot contain its imports — they sit at the top of the file, outside the
+    chunk. Without them a retrieved function gives no signal about what it depends on. Attaching the file's
+    imports to every chunk from that file restores that context.</p>
+  </div>
+</section>
+
+<!-- 04 -->
+<section id="query">
+  <h2><span class="ln">§ 04</span>Query pipeline</h2>
+  <p class="lede">Five nodes in a LangGraph state machine, with one conditional branch.</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 760 300" role="img" aria-label="Query pipeline: rewrite, hybrid retrieve, rerank, then a conditional branch to graph expansion or straight to generation">
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#0B6E75"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace,Menlo,monospace" font-size="11">
+
+          <text x="6" y="20" font-size="9.5" opacity=".6">question in</text>
+          <line x1="6" y1="46" x2="6" y2="46" stroke="currentColor"/>
+
+          <rect x="6" y="30" width="126" height="50" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="69" y="51" text-anchor="middle">1 · rewrite</text>
+          <text x="69" y="66" text-anchor="middle" font-size="9" opacity=".6">LLM · gpt-4o-mini</text>
+
+          <line x1="132" y1="55" x2="168" y2="55" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar3)"/>
+
+          <rect x="168" y="30" width="140" height="50" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="238" y="51" text-anchor="middle">2 · hybrid retrieve</text>
+          <text x="238" y="66" text-anchor="middle" font-size="9" opacity=".6">dense + sparse → RRF</text>
+
+          <line x1="308" y1="55" x2="344" y2="55" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar3)"/>
+
+          <rect x="344" y="30" width="126" height="50" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="407" y="51" text-anchor="middle">3 · rerank</text>
+          <text x="407" y="66" text-anchor="middle" font-size="9" opacity=".6">Cohere · keep 20</text>
+
+          <!-- conditional -->
+          <path d="M407 80 L407 108" fill="none" stroke="#0B6E75" stroke-width="1.6"/>
+          <polygon points="407,108 449,134 407,160 365,134" fill="none" stroke="#0B6E75" stroke-width="1.6"/>
+          <text x="407" y="130" text-anchor="middle" font-size="9.5" fill="#0B6E75">trace</text>
+          <text x="407" y="142" text-anchor="middle" font-size="9.5" fill="#0B6E75">question?</text>
+
+          <path d="M365 134 L246 134 L246 178" fill="none" stroke="#0B6E75" stroke-width="1.5" marker-end="url(#ar3a)"/>
+          <text x="300" y="127" text-anchor="middle" font-size="9.5" fill="#0B6E75">yes</text>
+
+          <rect x="168" y="178" width="156" height="50" rx="3" fill="none" stroke="#0B6E75" stroke-width="1.6"/>
+          <text x="246" y="199" text-anchor="middle" fill="#0B6E75">4 · graph expand</text>
+          <text x="246" y="214" text-anchor="middle" font-size="9" opacity=".7">pull callers/callees</text>
+
+          <path d="M449 134 L560 134 L560 178" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar3)"/>
+          <text x="508" y="127" text-anchor="middle" font-size="9.5" opacity=".65">no</text>
+
+          <path d="M324 203 L470 203" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar3)"/>
+
+          <rect x="482" y="178" width="156" height="50" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <text x="560" y="199" text-anchor="middle">5 · generate</text>
+          <text x="560" y="214" text-anchor="middle" font-size="9" opacity=".6">must cite path:line</text>
+
+          <line x1="638" y1="203" x2="690" y2="203" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar3)"/>
+          <text x="722" y="199" text-anchor="middle" font-size="10">answer</text>
+          <text x="722" y="213" text-anchor="middle" font-size="9" opacity=".6">or refusal</text>
+
+          <text x="6" y="272" font-size="9.5" opacity=".55">State flows through every node as a typed dict — each returns only the keys it changes.</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>The only branch in the graph.</b> Expansion is conditional because pulling in callers and
+    callees helps a &ldquo;how does this flow&rdquo; question and actively hurts a &ldquo;what does this one
+    function do&rdquo; question by burying the answer in unrelated code.</figcaption>
+  </figure>
+
+  <h3>What each node does</h3>
+  <div class="scroll"><table>
+    <tr><th>Node</th><th>Does</th><th>Runs on</th></tr>
+    <tr><td><b>query_rewrite</b></td><td>Turns conversational phrasing into a retrieval-friendly query. &ldquo;How does login work?&rdquo; becomes terms likelier to match code.</td><td>OpenAI</td></tr>
+    <tr><td><b>hybrid_retrieve</b></td><td>Embeds the query dense and sparse, runs both searches, fuses with RRF</td><td>OpenAI + local + Qdrant</td></tr>
+    <tr><td><b>rerank</b></td><td>Scores every candidate against the query with a cross-encoder, keeps the top 20, records a confidence</td><td>Cohere</td></tr>
+    <tr><td><b>graph_expand</b></td><td>Conditional. Adds callers and callees of the retrieved symbols</td><td>Local + Qdrant</td></tr>
+    <tr><td><b>generate</b></td><td>Writes the answer from the retrieved chunks, with mandatory citations</td><td>OpenAI</td></tr>
+  </table></div>
+
+  <div class="why">
+    <h4>Why LangGraph rather than a chain or plain functions</h4>
+    <p>The pipeline is not a straight line — it branches at rerank. A linear chain cannot express that without
+    an <code>if</code> buried inside a step, which hides control flow. LangGraph makes the branch a declared
+    edge, so the shape of the pipeline is readable from the graph definition rather than reconstructed by
+    reading every function. Typed state also means each node declares exactly which keys it reads and writes.</p>
+  </div>
+</section>
+
+<!-- 05 -->
+<section id="hybrid">
+  <h2><span class="ln">§ 05</span>Hybrid retrieval and RRF</h2>
+  <p class="lede">Two searches with opposite strengths, combined by rank rather than by score.</p>
+
+  <p><b>Dense (semantic) search</b> converts text into a 1536-dimension vector where similar <em>meanings</em>
+  land near each other. It finds the authentication code when you ask about &ldquo;login,&rdquo; even if the
+  word &ldquo;login&rdquo; never appears. It is bad at exact tokens: search <code>UserServiceImpl</code> and it
+  may return a dozen plausible-looking service classes.</p>
+
+  <p><b>Sparse (BM25) search</b> is classic keyword matching with term weighting. It nails exact identifiers,
+  error strings, and rare names. It is useless when your words differ from the code's words.</p>
+
+  <p>Code search needs both, because developers ask both kinds of question — &ldquo;where do we handle
+  rate limiting&rdquo; (semantic) and &ldquo;what uses <code>MAX_RETRIES</code>&rdquo; (lexical).</p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 700 250" role="img" aria-label="Two ranked result lists from dense and sparse search merged by Reciprocal Rank Fusion into one list, where a chunk ranked moderately by both outranks one ranked first by only one">
+        <defs>
+          <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace,Menlo,monospace" font-size="11">
+
+          <text x="86" y="20" text-anchor="middle" font-size="10" opacity=".7">dense ranking</text>
+          <rect x="20" y="30" width="132" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="32" y="47" font-size="10">1 · auth.py</text>
+          <rect x="20" y="60" width="132" height="26" rx="2" fill="none" stroke="#0B6E75" stroke-width="1.6"/>
+          <text x="32" y="77" font-size="10" fill="#0B6E75">2 · session.py</text>
+          <rect x="20" y="90" width="132" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="32" y="107" font-size="10">3 · token.py</text>
+
+          <text x="86" y="150" text-anchor="middle" font-size="10" opacity=".7">sparse ranking</text>
+          <rect x="20" y="160" width="132" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="32" y="177" font-size="10">1 · login.py</text>
+          <rect x="20" y="190" width="132" height="26" rx="2" fill="none" stroke="#0B6E75" stroke-width="1.6"/>
+          <text x="32" y="207" font-size="10" fill="#0B6E75">2 · session.py</text>
+          <rect x="20" y="220" width="132" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="32" y="237" font-size="10">3 · auth.py</text>
+
+          <path d="M152 72 L214 116" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar4)"/>
+          <path d="M152 202 L214 158" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar4)"/>
+
+          <rect x="222" y="112" width="150" height="50" rx="3" fill="none" stroke="#0B6E75" stroke-width="1.7"/>
+          <text x="297" y="132" text-anchor="middle" font-size="11" fill="#0B6E75">RRF</text>
+          <text x="297" y="149" text-anchor="middle" font-size="9.5" opacity=".72">score = Σ 1/(60 + rank)</text>
+
+          <line x1="372" y1="137" x2="424" y2="137" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar4)"/>
+
+          <text x="500" y="20" text-anchor="middle" font-size="10" opacity=".7">fused ranking</text>
+          <rect x="434" y="30" width="150" height="26" rx="2" fill="none" stroke="#0B6E75" stroke-width="1.7"/>
+          <text x="446" y="47" font-size="10" fill="#0B6E75">1 · session.py</text>
+          <rect x="434" y="60" width="150" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="446" y="77" font-size="10">2 · auth.py</text>
+          <rect x="434" y="90" width="150" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+          <text x="446" y="107" font-size="10">3 · login.py</text>
+
+          <text x="434" y="150" font-size="9.5" opacity=".62">session.py was never first in</text>
+          <text x="434" y="164" font-size="9.5" opacity=".62">either list — but it is the only</text>
+          <text x="434" y="178" font-size="9.5" opacity=".62">chunk both methods agreed on,</text>
+          <text x="434" y="192" font-size="9.5" opacity=".62">so fusion promotes it to the top.</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>Why fusion beats picking a winner.</b> Agreement between two independent methods is a
+    stronger signal than a high score from either one alone.</figcaption>
+  </figure>
+
+  <div class="why">
+    <h4>Why RRF instead of adding the scores together</h4>
+    <p>Dense similarity and BM25 produce numbers on completely different scales — cosine similarity sits
+    between 0 and 1, BM25 is unbounded and depends on corpus statistics. Adding or averaging them means one
+    silently dominates, and the balance shifts with every repo you ingest.</p>
+    <p>Reciprocal Rank Fusion throws the scores away and uses only <em>position</em>: each result contributes
+    <code>1 / (60 + rank)</code>. Ranks are comparable across any two systems, so no tuning is needed and no
+    normalisation can drift. The constant 60 damps the difference between rank 1 and rank 2 so a single
+    confident system cannot dominate the fusion.</p>
+  </div>
+</section>
+
+<!-- 06 -->
+<section id="rerank">
+  <h2><span class="ln">§ 06</span>Reranking</h2>
+  <p class="lede">Retrieval is fast and approximate. Reranking is slow and accurate. Use each where it belongs.</p>
+
+  <p>Vector search compares the query vector to chunk vectors that were computed <em>independently</em>,
+  before the query existed. That is what makes it fast enough to search millions of chunks — and what makes
+  it imprecise, because the chunk's vector was never influenced by your question.</p>
+
+  <p>A cross-encoder reads the query and one chunk <em>together</em> and scores how well that chunk answers
+  that query. Far more accurate, and far too slow to run over a whole index. So the pipeline retrieves a
+  generous candidate set cheaply, then reranks only those candidates and keeps the top 20.</p>
+
+  <div class="why">
+    <h4>Why the score is kept, not just the order</h4>
+    <p>The reranker's top score becomes the pipeline's <b>confidence</b>. If the best chunk it could find
+    still scores poorly, that is direct evidence the index does not contain the answer — which is what
+    triggers a refusal instead of a guess. Reranking therefore does two jobs: ordering, and knowing when to
+    stop.</p>
+  </div>
+
+  <div class="why">
+    <h4>Why Cohere's hosted reranker rather than a local cross-encoder</h4>
+    <p>The project originally ran <code>sentence-transformers</code> locally. On CPU that became the single
+    largest per-question cost. Moving it to a hosted API replaced local compute with a network round trip —
+    the same trade already made for embeddings. The local path still exists behind the same
+    <code>.predict(pairs)</code> interface, so removing the API key restores it with no code change.</p>
+  </div>
+</section>
+
+<!-- 07 -->
+<section id="graph">
+  <h2><span class="ln">§ 07</span>Graph expansion — the &ldquo;Graph&rdquo; in Graph-RAG</h2>
+  <p class="lede">Plain RAG retrieves chunks that <em>look like</em> the question. Code questions often need
+  chunks that are <em>connected to</em> those chunks.</p>
+
+  <p>Ask &ldquo;what happens when a user uploads a file?&rdquo; and pure similarity search returns the upload
+  handler. But the answer spans the handler, the validator it calls, the storage function that calls, and the
+  error path around it. Those functions may not resemble the question at all — they are relevant because of
+  their <em>relationship</em> to the chunk that does.</p>
+
+  <p>During ingestion, every chunk's body is scanned for identifiers in call position, producing a map of
+  which symbol calls which. At query time, if the question looks like a trace question, the pipeline follows
+  those edges from the retrieved chunks and pulls in their callers and callees before generating.</p>
+
+  <div class="why">
+    <h4>Why regex extraction rather than a full call-graph analyser</h4>
+    <p>Proper call-graph construction needs type resolution and import following — per language, and
+    genuinely hard for dynamic languages. This project indexes 15 languages, so that cost is multiplied by
+    15. A regex scan for identifiers in call position is approximate: it catches real calls, and also catches
+    some things that are not calls.</p>
+    <p>That trade is acceptable because the graph is used to <em>widen</em> a candidate set that is then
+    reranked. A false edge pulls in an irrelevant chunk, the reranker scores it low, and it never reaches the
+    model. A missed edge costs a little recall. Neither produces a wrong answer — which is why an approximate
+    graph is good enough here and would not be for, say, a refactoring tool.</p>
+  </div>
+</section>
+
+<!-- 08 -->
+<section id="trust">
+  <h2><span class="ln">§ 08</span>Citations and refusal</h2>
+  <p class="lede">The feature that separates this from a chatbot with a vector database attached.</p>
+
+  <p>Every chunk carries its exact file path and line range through the entire pipeline, and the generation
+  prompt requires the model to cite <code>path:line</code> for each claim. The frontend renders those
+  citations as clickable references, so a reader can verify any sentence against the actual source.</p>
+
+  <p>The refusal path is the harder engineering. Two independent conditions produce &ldquo;I don't know&rdquo;
+  rather than an answer:</p>
+  <ul>
+    <li><b>Low retrieval confidence</b> — the reranker's best score is below threshold, so the index probably
+    does not contain the answer.</li>
+    <li><b>Missing citation</b> — the model produced prose without pointing at a source, which means it fell
+    back on general knowledge instead of the provided context.</li>
+  </ul>
+
+  <p>Refusals are stored as a flag on the message, so a refusal survives a page reload instead of appearing
+  later as if it were a normal answer.</p>
+
+  <div class="why">
+    <h4>Why refusing is a feature, not a limitation</h4>
+    <p>The purpose of the tool is to save a developer from reading the whole codebase. A wrong answer
+    <em>costs</em> them time — they act on it, it fails, and they debug both the code and the bad explanation.
+    A refusal costs them nothing beyond the question. So the system is deliberately tuned to prefer silence
+    over confidence, which is the opposite of how a general assistant is tuned.</p>
+  </div>
+</section>
+
+<!-- 09 -->
+<section id="stack">
+  <h2><span class="ln">§ 09</span>Tech stack, and what was rejected</h2>
+  <p class="lede">Every row here is an interview question waiting to happen. The third column is the answer.</p>
+
+  <h4>Pipeline</h4>
+  <div class="scroll"><table>
+    <tr><th>Technology</th><th>Job</th><th>Chosen over</th></tr>
+    <tr><td><b>LangGraph</b></td><td>Pipeline orchestration as a state machine</td><td>LangChain chains — cannot express the conditional branch cleanly; raw functions — control flow becomes invisible</td></tr>
+    <tr><td><b>tree-sitter</b></td><td>Parse 15 languages into syntax trees for chunking</td><td>Fixed token windows — cut mid-function; regex parsing — breaks on real syntax; per-language parsers — 15 dependencies</td></tr>
+    <tr><td><b>Qdrant</b></td><td>Vector store with native sparse-vector support</td><td>Pinecone — hosted only; Chroma — weaker hybrid support; pgvector — no native sparse vectors</td></tr>
+    <tr><td><b>FastEmbed (BM25)</b></td><td>Sparse lexical vectors</td><td>Elasticsearch — a whole second service for one feature</td></tr>
+    <tr><td><b>OpenAI embeddings</b></td><td>Dense vectors, 1536-dim</td><td>Local FastEmbed models — minutes of CPU per repo; the tradeoff is documented in the code</td></tr>
+    <tr><td><b>Cohere rerank</b></td><td>Cross-encoder scoring</td><td>Local sentence-transformers — dominated per-question latency on CPU</td></tr>
+    <tr><td><b>tiktoken</b></td><td>Token counting for the chunk budget</td><td>Character heuristics — wrong often enough to fail embedding batches</td></tr>
+    <tr><td><b>DeepEval</b></td><td>Retrieval and answer quality metrics</td><td>Eyeballing outputs — not defensible in review</td></tr>
+  </table></div>
+
+  <h4>Web layer</h4>
+  <div class="scroll"><table>
+    <tr><th>Technology</th><th>Job</th><th>Chosen over</th></tr>
+    <tr><td><b>FastAPI</b></td><td>HTTP API, background ingestion tasks, SSE streaming</td><td>Flask — no native async or typed validation; Django — far more framework than four tables need</td></tr>
+    <tr><td><b>SQLAlchemy</b></td><td>ORM over users, repos, conversations, messages</td><td>Raw SQL — no portability to Postgres later</td></tr>
+    <tr><td><b>bcrypt + JWT</b></td><td>Password hashing and stateless sessions</td><td>Auth0/Clerk — external dependency for a portfolio project; plain sessions — needs server-side state</td></tr>
+    <tr><td><b>React + Vite</b></td><td>Chat UI and dev server with API proxy</td><td>Next.js — SSR buys nothing for an authenticated single-page chat</td></tr>
+    <tr><td><b>Tailwind</b></td><td>Styling</td><td>Component libraries — heavier than a four-page app needs</td></tr>
+    <tr><td><b>SSE</b></td><td>Streaming pipeline progress to the browser</td><td>WebSockets — bidirectional, unnecessary here; polling — worse latency and more requests</td></tr>
+  </table></div>
+
+  <div class="why">
+    <h4>The pattern worth pointing out</h4>
+    <p>Three components are swappable through a single environment variable, each behind an identical
+    interface: vector store (local or cloud), reranker (local or hosted), chunker (syntactic or semantic).
+    That is why moving the vector store to the cloud was a one-function change rather than a refactor. If an
+    interviewer asks about extensibility, this is the concrete example.</p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="stores">
+  <h2><span class="ln">§ 10</span>Data stores</h2>
+  <p class="lede">Three stores, deliberately separated by what they are good at.</p>
+
+  <div class="scroll"><table>
+    <tr><th>Store</th><th>Holds</th><th>Why this one</th></tr>
+    <tr><td><b>Qdrant</b></td><td>Chunk vectors and payloads — one collection per repo</td><td>Vector similarity is not something a relational database does well; per-repo collections give isolation for free</td></tr>
+    <tr><td><b>SQLite</b></td><td>Users, repo metadata, conversations, messages</td><td>Relational data with real foreign keys; swaps to Postgres by changing one URL</td></tr>
+    <tr><td><b>JSON files</b></td><td>Call graph per collection</td><td>A nested map that is read whole and written whole — a table would add schema for no query benefit</td></tr>
+  </table></div>
+
+  <p>The link between the first two is one column: the repo row stores its Qdrant collection name. That single
+  field is what ties relational data to vector data, and it is why moving the vector store leaves old repo
+  rows pointing at collections that no longer exist.</p>
+
+  <div class="flag">
+    <h4>Known weakness</h4>
+    <p>Both SQLite and the call-graph JSON live on local disk. In a container that disk is erased on every
+    restart. See §14.</p>
+  </div>
+</section>
+
+<!-- 11 -->
+<section id="api">
+  <h2><span class="ln">§ 11</span>Backend and frontend</h2>
+
+  <h3>API surface</h3>
+  <div class="scroll"><table>
+    <tr><th>Route</th><th>Purpose</th></tr>
+    <tr><td><code>POST /auth/signup</code> · <code>/auth/login</code></td><td>Create account, return a JWT</td></tr>
+    <tr><td><code>GET /auth/me</code></td><td>Current user from the bearer token</td></tr>
+    <tr><td><code>POST /repos</code></td><td>Start ingestion; returns immediately with status <code>pending</code></td></tr>
+    <tr><td><code>GET /repos</code></td><td>List repos and their ingestion status</td></tr>
+    <tr><td><code>POST /conversations</code></td><td>Start a conversation against a repo</td></tr>
+    <tr><td><code>GET /conversations/{id}/messages</code></td><td>Full history for reload</td></tr>
+    <tr><td><code>POST /chat</code></td><td>Ask a question; streams progress and the answer over SSE</td></tr>
+  </table></div>
+
+  <div class="why">
+    <h4>Why ingestion returns before it finishes</h4>
+    <p>Ingesting a repo takes minutes. Holding an HTTP connection open that long fails on every proxy and
+    timeout in the path. Instead the row is created as <code>pending</code>, the response is sent, and the
+    work runs as a background task that moves the row through <code>ingesting</code> to <code>ready</code> or
+    <code>failed</code>. The UI polls the status.</p>
+  </div>
+
+  <h3>Frontend</h3>
+  <p>Four routes — landing, login, signup, chat — with a guard component that redirects unauthenticated users.
+  The JWT lives in <code>localStorage</code>. Chat uses raw <code>fetch</code> with a stream reader rather
+  than the browser's <code>EventSource</code>, because <code>EventSource</code> cannot send an
+  <code>Authorization</code> header — a small detail that shapes the whole client.</p>
+</section>
+
+<!-- 12 -->
+<section id="eval">
+  <h2><span class="ln">§ 12</span>Evaluation</h2>
+  <p class="lede">If you cannot measure a RAG system, you are guessing about every change you make.</p>
+
+  <div class="scroll"><table>
+    <tr><th>Metric</th><th>Question it answers</th><th>Catches</th></tr>
+    <tr><td><b>Faithfulness</b></td><td>Is every claim supported by the retrieved context?</td><td>Hallucination — the model padding with general knowledge</td></tr>
+    <tr><td><b>Answer relevancy</b></td><td>Does the answer address what was asked?</td><td>Correct but off-topic responses</td></tr>
+    <tr><td><b>Contextual recall</b></td><td>Did retrieval surface the chunks needed to answer?</td><td>Retrieval failures, as distinct from generation failures</td></tr>
+  </table></div>
+
+  <div class="why">
+    <h4>Why these three specifically</h4>
+    <p>They separate the two halves of the system. Contextual recall grades <em>retrieval</em>; faithfulness
+    and relevancy grade <em>generation</em>. When quality drops, that split tells you which half to fix —
+    without it you are tuning blind, changing chunk sizes to fix what was actually a prompt problem.</p>
+  </div>
+</section>
+
+<!-- 13 -->
+<section id="perf">
+  <h2><span class="ln">§ 13</span>Measured performance</h2>
+  <p class="lede">Real numbers from the running system, ingesting a 69-file repository into 414 chunks.</p>
+
+  <div class="stat-row">
+    <div class="stat"><div class="v">0.08s</div><div class="k">All local CPU work, whole repo</div></div>
+    <div class="stat"><div class="v">2.93s</div><div class="k">git clone</div></div>
+    <div class="stat"><div class="v">0.04s</div><div class="k">tree-sitter chunking, 414 chunks</div></div>
+    <div class="stat"><div class="v">0.17s</div><div class="k">bcrypt, per login</div></div>
+    <div class="stat"><div class="v">95 MB</div><div class="k">Backend memory, idle</div></div>
+    <div class="stat"><div class="v">0</div><div class="k">Neural inference run locally</div></div>
+  </div>
+
+  <p>The headline result is the last one. No model runs on the machine hosting this application — embeddings,
+  reranking, and generation are all network calls. BM25 is lexical statistics, not a neural model, and runs
+  no inference.</p>
+
+  <p>The consequence worth stating out loud: <b>password hashing is the most expensive computation in the
+  entire project</b>, costing roughly twice the local CPU of ingesting a whole repository. That is by design —
+  bcrypt is deliberately slow — but it means this system needs no GPU and fits comfortably in a small
+  container, which is unusual for anything labelled RAG.</p>
+</section>
+
+<!-- 14 -->
+<section id="deploy">
+  <h2><span class="ln">§ 14</span>Deployment readiness</h2>
+  <p class="lede">What works as-is, and the three things that break on a cloud host.</p>
+
+  <p>Because all inference is remote, the deployment target is small and cheap — no GPU, modest memory. What
+  does not survive the move is anything assuming a permanent local filesystem.</p>
+
+  <div class="flag">
+    <h4>1 · SQLite is erased on every restart</h4>
+    <p>Containers have ephemeral disks. Every deploy or crash wipes the database — all accounts and all chat
+    history. The fix needs no code change: point <code>DATABASE_URL</code> at managed Postgres. The database
+    layer already branches on the URL scheme.</p>
+  </div>
+
+  <div class="flag">
+    <h4>2 · Call graphs vanish silently</h4>
+    <p>Same ephemeral disk, but this failure is invisible. Graph expansion simply finds nothing and stops
+    expanding — answers get worse on trace questions with no error anywhere. Fix: move the call graph into
+    the database or object storage.</p>
+  </div>
+
+  <div class="flag">
+    <h4>3 · Ingestion can be killed mid-run</h4>
+    <p>Ingestion is a background task lasting minutes. If the platform recycles or sleeps the container during
+    it, the repo is stranded as <code>ingesting</code> forever with nothing to retry it. The container also
+    needs <code>git</code> installed, which slim base images omit.</p>
+  </div>
+
+  <h4>Also required</h4>
+  <ul>
+    <li>Serve the built frontend from FastAPI so one process handles API and UI</li>
+    <li>Add a health endpoint — every platform needs one for readiness checks</li>
+    <li>Bake the BM25 vocabulary into the image so cold starts do not depend on a model download</li>
+    <li>Drop the unused torch dependency — 389 MB locally, several GB on Linux where it pulls CUDA wheels by default</li>
+  </ul>
+</section>
+
+<!-- 15 -->
+<section id="interview">
+  <h2><span class="ln">§ 15</span>Questions you will be asked</h2>
+
+  <div class="qa">
+    <p class="q">Why not just use a bigger context window and paste the whole repo in?</p>
+    <p>Cost and accuracy. A large repo exceeds even long context windows, and models reliably lose detail in
+    the middle of very long inputs. Retrieval gives the model a small, high-relevance context — cheaper per
+    query and more accurate. It also makes citation possible: you know which chunks were used because you
+    chose them.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">How do you know retrieval is actually working?</p>
+    <p>Contextual recall in the DeepEval harness grades retrieval separately from generation. Reranker
+    confidence is also logged per query, so a pattern of low-confidence answers is visible without reading
+    outputs.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">What happens when the repository changes?</p>
+    <p>Currently re-ingestion rebuilds the collection. The honest answer is that incremental updates are not
+    implemented — the design would key chunks by content hash and re-embed only changed files, which the
+    chunk-ID scheme already anticipates.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">Why two embedding types instead of one good one?</p>
+    <p>They fail in opposite directions. Dense search misses exact identifiers; sparse search misses
+    paraphrases. Developers ask both kinds of question, and fusing by rank rather than score means neither
+    method needs tuning against the other.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">What is the weakest part of this system?</p>
+    <p>Two things. The call graph is regex-derived, so it is approximate — acceptable because it only widens
+    a candidate set that gets reranked, but it would not support a refactoring tool. And chunk-level retrieval
+    cannot answer questions whose answer is genuinely spread across many files; graph expansion mitigates that
+    but does not solve it.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">How would you scale this to a thousand users?</p>
+    <p>Postgres instead of SQLite, call graphs out of local files, and ingestion moved from in-process
+    background tasks to a real queue with retries. The vector store is already managed and horizontally
+    scalable. Because no inference is local, the web tier scales by adding small stateless containers.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">Why does it refuse to answer sometimes?</p>
+    <p>Deliberately. Low reranker confidence or a missing citation triggers a refusal. For a tool whose job is
+    to save reading time, a confident wrong answer costs the user more than no answer.</p>
+  </div>
+</section>
+
+<p class="end">MindAI · Graph-RAG over source code · every figure and number in this manual was measured on the running system</p>
+
+</main>
+</div>

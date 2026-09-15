@@ -1,0 +1,295 @@
+<title>MindAI Process Map</title>
+<style>
+  :root{
+    --ground:#F6F8F8; --surface:#FFFFFF; --ink:#0E1817; --ink-2:#2C3E3C;
+    --muted:#566866; --rule:#D3DEDC; --accent:#0B6E75; --warn:#9C4A21;
+    --serif:"Iowan Old Style",Charter,"Bitstream Charter",Palatino,Georgia,serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1312; --surface:#121D1C; --ink:#E2ECEA; --ink-2:#C3D2D0;
+      --muted:#8CA19E; --rule:#263634; --accent:#45B9C1; --warn:#DD8B5E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1312; --surface:#121D1C; --ink:#E2ECEA; --ink-2:#C3D2D0;
+    --muted:#8CA19E; --rule:#263634; --accent:#45B9C1; --warn:#DD8B5E;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink); font-family:var(--serif);
+       margin:0; padding:34px 26px 70px; line-height:1.6; -webkit-font-smoothing:antialiased}
+  .page{max-width:1280px; margin:0 auto}
+  .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+          color:var(--accent); margin:0 0 12px}
+  h1{font-size:2.3rem; margin:0 0 10px; font-weight:600; letter-spacing:-.02em}
+  .sub{color:var(--ink-2); max-width:74ch; margin:0 0 26px; font-size:1.03rem}
+
+  figure{margin:0 0 34px}
+  .figbox{background:var(--surface); border:1px solid var(--rule); border-radius:3px;
+          padding:20px 16px; overflow-x:auto}
+  svg{display:block; width:100%; min-width:900px; height:auto; color:var(--ink)}
+
+  /* diagram encoding: plain = your machine, accent = network call */
+  .bx{fill:none; stroke:currentColor; stroke-width:1.3}
+  .bx-rm{fill:none; stroke:var(--accent); stroke-width:1.7}
+  .bx-st{fill:none; stroke:currentColor; stroke-width:1.2; stroke-dasharray:4 3}
+  .ln{stroke:currentColor; stroke-width:1.3; fill:none}
+  .ln-rm{stroke:var(--accent); stroke-width:1.5; fill:none}
+  .t{font-family:var(--mono); font-size:11.5px; fill:currentColor}
+  .t-s{font-family:var(--mono); font-size:9px; fill:currentColor; opacity:.62}
+  .t-rm{font-family:var(--mono); font-size:11.5px; fill:var(--accent)}
+  .t-lane{font-family:var(--mono); font-size:11px; fill:currentColor; opacity:.55; letter-spacing:.1em}
+  .ah{fill:currentColor}
+  .ah-rm{fill:var(--accent)}
+
+  figcaption{font-family:var(--sans); font-size:12.5px; color:var(--muted); margin-top:12px; max-width:80ch}
+
+  h2{font-size:1.3rem; margin:32px 0 10px; font-weight:600; letter-spacing:-.01em}
+  ol{padding-left:20px; max-width:78ch; margin:0 0 18px}
+  li{margin-bottom:9px}
+  code{font-family:var(--mono); font-size:.85em; background:var(--rule); padding:1px 5px; border-radius:3px}
+  .legend{display:flex; flex-wrap:wrap; gap:10px 28px; font-family:var(--sans); font-size:12.5px;
+          color:var(--muted); margin:16px 0 0; padding:14px 16px; background:var(--surface);
+          border:1px solid var(--rule); border-radius:3px}
+  .legend span{display:flex; align-items:center; gap:8px}
+  .sw{width:22px; height:0; border-top:2px solid currentColor; display:inline-block}
+  .sw.rm{border-color:var(--accent); border-top-width:2.5px}
+  .sw.st{border-style:dashed}
+
+  @media print{
+    @page{size:A4 landscape; margin:11mm}
+    /* These three selectors must match the specificity of the dark-theme
+       block above, or `:root:not([data-theme="light"])` wins here too and
+       the page prints white strokes onto white paper. */
+    :root,
+    :root:not([data-theme="light"]),
+    :root[data-theme="dark"]{
+      --ground:#fff; --surface:#fff; --ink:#000; --ink-2:#1c2b29; --muted:#485856;
+      --rule:#c2cfcd; --accent:#0A5A60; --warn:#8A3F1B;
+    }
+    *{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+    body{background:#fff; color:#000; padding:0; font-size:10pt}
+    svg{color:#000}
+    /* overflow-x:auto collapses the SVG's auto height in Chrome's print
+       layout, leaving an empty figure — the page is wide enough here anyway */
+    .figbox{border-color:#c2cfcd; padding:6px 2px; overflow:visible}
+    svg{min-width:0; width:100%; height:auto; display:block}
+    /* Header + figure + caption + legend must clear 188mm of printable
+       landscape height, or page-break-inside:avoid pushes the whole figure
+       onto page 2 and leaves page 1 nearly empty. */
+    figure{page-break-inside:avoid; margin:0 auto 8px; width:93%}
+    .kicker{margin-bottom:6px}
+    h1{font-size:16pt; margin-bottom:3px}
+    .sub{font-size:9pt; margin-bottom:9px; max-width:none}
+    figcaption{margin-top:6px; font-size:8.5pt}
+    .legend{margin-top:8px; padding:8px 12px; font-size:9pt}
+    h2{page-break-after:avoid; font-size:12.5pt; margin:14px 0 6px}
+    .walk{page-break-before:always}
+  }
+</style>
+
+<div class="page">
+
+<p class="kicker">MindAI · end-to-end process map</p>
+<h1>How a question becomes a cited answer</h1>
+<p class="sub">The whole system on one page: what happens once per repository, what happens on every
+question, and the three stores that connect the two. Line colour encodes where the work runs.</p>
+
+<figure>
+  <div class="figbox">
+    <svg viewBox="0 0 1180 548" role="img" aria-label="Complete MindAI process map: an ingestion lane that clones, chunks and embeds a repository into three data stores, and a query lane that reads those stores to retrieve, rerank, optionally expand through the call graph, and generate a cited answer or a refusal">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" class="ah"/>
+        </marker>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" class="ah-rm"/>
+        </marker>
+      </defs>
+
+      <!-- ============ LANE A · INGESTION ============ -->
+      <text x="6" y="20" class="t-lane">A · INGESTION — RUNS ONCE PER REPOSITORY, IN THE BACKGROUND</text>
+
+      <rect x="6"    y="38" width="148" height="52" rx="3" class="bx"/>
+      <text x="80"   y="60" class="t" text-anchor="middle">paste repo URL</text>
+      <text x="80"   y="76" class="t-s" text-anchor="middle">in the sidebar</text>
+
+      <rect x="176"  y="38" width="148" height="52" rx="3" class="bx"/>
+      <text x="250"  y="60" class="t" text-anchor="middle">POST /repos</text>
+      <text x="250"  y="76" class="t-s" text-anchor="middle">row saved · pending</text>
+
+      <rect x="346"  y="38" width="148" height="52" rx="3" class="bx"/>
+      <text x="420"  y="60" class="t" text-anchor="middle">git clone</text>
+      <text x="420"  y="76" class="t-s" text-anchor="middle">depth 1 · then filter</text>
+
+      <rect x="516"  y="38" width="148" height="52" rx="3" class="bx"/>
+      <text x="590"  y="60" class="t" text-anchor="middle">tree-sitter chunk</text>
+      <text x="590"  y="76" class="t-s" text-anchor="middle">fn / class boundaries</text>
+
+      <rect x="686"  y="38" width="148" height="52" rx="3" class="bx-rm"/>
+      <text x="760"  y="60" class="t-rm" text-anchor="middle">embed ×2</text>
+      <text x="760"  y="76" class="t-s" text-anchor="middle">dense ∥ sparse</text>
+
+      <rect x="856"  y="38" width="148" height="52" rx="3" class="bx-rm"/>
+      <text x="930"  y="60" class="t-rm" text-anchor="middle">upsert + save</text>
+      <text x="930"  y="76" class="t-s" text-anchor="middle">vectors · call graph</text>
+
+      <rect x="1026" y="38" width="148" height="52" rx="3" class="bx"/>
+      <text x="1100" y="60" class="t" text-anchor="middle">status → ready</text>
+      <text x="1100" y="76" class="t-s" text-anchor="middle">repo is queryable</text>
+
+      <line x1="154"  y1="64" x2="170"  y2="64" class="ln" marker-end="url(#a)"/>
+      <line x1="324"  y1="64" x2="340"  y2="64" class="ln" marker-end="url(#a)"/>
+      <line x1="494"  y1="64" x2="510"  y2="64" class="ln" marker-end="url(#a)"/>
+      <line x1="664"  y1="64" x2="680"  y2="64" class="ln" marker-end="url(#a)"/>
+      <line x1="834"  y1="64" x2="850"  y2="64" class="ln-rm" marker-end="url(#ar)"/>
+      <line x1="1004" y1="64" x2="1020" y2="64" class="ln-rm" marker-end="url(#ar)"/>
+
+      <!-- ============ STORES ============ -->
+      <text x="6" y="130" class="t-lane">B · STORES — WHAT INGESTION WRITES AND QUERIES READ</text>
+
+      <path d="M250 90 L250 148" class="ln" marker-end="url(#a)"/>
+      <text x="258" y="110" class="t-s">accounts · history</text>
+
+      <path d="M930 90 L930 118 L590 118 L590 148" class="ln-rm" marker-end="url(#ar)"/>
+      <text x="598" y="112" class="t-s">vectors + payloads</text>
+
+      <path d="M958 90 L958 148" class="ln" marker-end="url(#a)"/>
+      <text x="966" y="122" class="t-s">who calls whom</text>
+
+      <rect x="140" y="148" width="220" height="58" rx="3" class="bx-st"/>
+      <text x="250" y="172" class="t" text-anchor="middle">SQLite</text>
+      <text x="250" y="190" class="t-s" text-anchor="middle">users · repos · messages</text>
+
+      <rect x="480" y="148" width="220" height="58" rx="3" class="bx-rm"/>
+      <text x="590" y="172" class="t-rm" text-anchor="middle">Qdrant Cloud</text>
+      <text x="590" y="190" class="t-s" text-anchor="middle">one collection per repo</text>
+
+      <rect x="820" y="148" width="220" height="58" rx="3" class="bx-st"/>
+      <text x="930" y="172" class="t" text-anchor="middle">call_graphs/*.json</text>
+      <text x="930" y="190" class="t-s" text-anchor="middle">symbol → callers/callees</text>
+
+      <!-- ============ LANE C · QUERY ============ -->
+      <text x="6" y="252" class="t-lane">C · QUERY — RUNS ON EVERY QUESTION</text>
+
+      <path d="M250 206 L250 270" class="ln" marker-end="url(#a)"/>
+      <text x="258" y="230" class="t-s">load history</text>
+
+      <path d="M590 206 L590 270" class="ln-rm" marker-end="url(#ar)"/>
+      <text x="598" y="242" class="t-s">search both vectors</text>
+
+      <path d="M930 206 L930 270" class="ln" marker-end="url(#a)"/>
+      <text x="938" y="242" class="t-s">follow edges</text>
+
+      <rect x="6"    y="270" width="148" height="52" rx="3" class="bx"/>
+      <text x="80"   y="292" class="t" text-anchor="middle">ask a question</text>
+      <text x="80"   y="308" class="t-s" text-anchor="middle">plain English</text>
+
+      <rect x="176"  y="270" width="148" height="52" rx="3" class="bx"/>
+      <text x="250"  y="292" class="t" text-anchor="middle">POST /chat</text>
+      <text x="250"  y="308" class="t-s" text-anchor="middle">SSE opens</text>
+
+      <rect x="346"  y="270" width="148" height="52" rx="3" class="bx-rm"/>
+      <text x="420"  y="292" class="t-rm" text-anchor="middle">1 · rewrite</text>
+      <text x="420"  y="308" class="t-s" text-anchor="middle">question → query</text>
+
+      <rect x="516"  y="270" width="148" height="52" rx="3" class="bx-rm"/>
+      <text x="590"  y="292" class="t-rm" text-anchor="middle">2 · retrieve</text>
+      <text x="590"  y="308" class="t-s" text-anchor="middle">dense+sparse → RRF</text>
+
+      <rect x="686"  y="270" width="148" height="52" rx="3" class="bx-rm"/>
+      <text x="760"  y="292" class="t-rm" text-anchor="middle">3 · rerank</text>
+      <text x="760"  y="308" class="t-s" text-anchor="middle">keep 20 · score</text>
+
+      <rect x="856"  y="270" width="148" height="52" rx="3" class="bx"/>
+      <text x="930"  y="292" class="t" text-anchor="middle">4 · expand</text>
+      <text x="930"  y="308" class="t-s" text-anchor="middle">only if trace question</text>
+
+      <rect x="1026" y="270" width="148" height="52" rx="3" class="bx-rm"/>
+      <text x="1100" y="292" class="t-rm" text-anchor="middle">5 · generate</text>
+      <text x="1100" y="308" class="t-s" text-anchor="middle">must cite path:line</text>
+
+      <line x1="154"  y1="296" x2="170"  y2="296" class="ln" marker-end="url(#a)"/>
+      <line x1="324"  y1="296" x2="340"  y2="296" class="ln" marker-end="url(#a)"/>
+      <line x1="494"  y1="296" x2="510"  y2="296" class="ln-rm" marker-end="url(#ar)"/>
+      <line x1="664"  y1="296" x2="680"  y2="296" class="ln-rm" marker-end="url(#ar)"/>
+      <line x1="834"  y1="296" x2="850"  y2="296" class="ln-rm" marker-end="url(#ar)"/>
+      <line x1="1004" y1="296" x2="1020" y2="296" class="ln" marker-end="url(#a)"/>
+
+      <!-- skip arrow: rerank bypasses expand -->
+      <path d="M812 322 L812 344 L1078 344 L1078 322" class="ln" marker-end="url(#a)"/>
+      <text x="945" y="358" class="t-s" text-anchor="middle">not a trace question — skip expansion</text>
+
+      <!-- ============ LANE D · OUTCOME (right to left) ============ -->
+      <text x="6" y="404" class="t-lane">D · OUTCOME — THE GUARD THAT MAKES THE ANSWER TRUSTWORTHY</text>
+
+      <path d="M1100 322 L1100 376 L1100 422" class="ln" marker-end="url(#a)"/>
+
+      <rect x="1026" y="422" width="148" height="56" rx="3" class="bx"/>
+      <text x="1100" y="444" class="t" text-anchor="middle">check</text>
+      <text x="1100" y="460" class="t-s" text-anchor="middle">confident? cited?</text>
+
+      <rect x="786"  y="422" width="188" height="56" rx="3" class="bx"/>
+      <text x="880"  y="444" class="t" text-anchor="middle">answer + citations</text>
+      <text x="880"  y="460" class="t-s" text-anchor="middle">or refusal if either fails</text>
+
+      <rect x="516"  y="422" width="188" height="56" rx="3" class="bx"/>
+      <text x="610"  y="444" class="t" text-anchor="middle">save + stream</text>
+      <text x="610"  y="460" class="t-s" text-anchor="middle">to SQLite · over SSE</text>
+
+      <rect x="246"  y="422" width="188" height="56" rx="3" class="bx"/>
+      <text x="340"  y="444" class="t" text-anchor="middle">rendered in chat</text>
+      <text x="340"  y="460" class="t-s" text-anchor="middle">citations clickable</text>
+
+      <line x1="1026" y1="450" x2="980"  y2="450" class="ln" marker-end="url(#a)"/>
+      <line x1="786"  y1="450" x2="710"  y2="450" class="ln" marker-end="url(#a)"/>
+      <line x1="516"  y1="450" x2="440"  y2="450" class="ln" marker-end="url(#a)"/>
+
+      <!-- loop back to the user -->
+      <path d="M246 450 L150 450 L150 508 L80 508 L80 328" class="ln" marker-end="url(#a)"/>
+      <text x="160" y="502" class="t-s">next question reuses the same index</text>
+
+      <!-- store write-back from save -->
+      <path d="M610 422 L610 400 L250 400 L250 212" class="ln" marker-end="url(#a)"/>
+    </svg>
+  </div>
+  <figcaption><b>Two lanes, one shared middle.</b> Lane A runs once and fills the stores; lane C runs on every
+  question and reads them. Nothing in lane C touches the repository — by then the code has already been parsed,
+  embedded and indexed, which is what makes answering fast.</figcaption>
+</figure>
+
+<div class="legend">
+  <span><i class="sw"></i> runs on your machine</span>
+  <span><i class="sw rm"></i> network call — OpenAI, Cohere, Qdrant Cloud</span>
+  <span><i class="sw st"></i> local disk — lost on container restart</span>
+</div>
+
+<div class="walk">
+<h2>Reading it in order</h2>
+<ol>
+  <li><b>Ingestion (A).</b> You paste a GitHub URL. The API saves a row as <code>pending</code> and returns
+  immediately — the real work takes minutes, so it runs in the background. The repo is shallow-cloned,
+  vendored and generated files are dropped, and tree-sitter cuts what's left at function and class
+  boundaries. Each chunk gets embedded twice — a dense vector from OpenAI for meaning, a sparse BM25 vector
+  computed locally for exact keywords — then upserted. The call graph is saved alongside, and the row flips
+  to <code>ready</code>.</li>
+
+  <li><b>Stores (B).</b> Three of them, each holding what it is good at: vectors in Qdrant, relational data
+  in SQLite, and the call graph as JSON because it is read whole and written whole.</li>
+
+  <li><b>Query (C).</b> Your question is rewritten into something that matches code rather than conversation.
+  Both indexes are searched and the two rankings are fused by position, not score. A cross-encoder reranks
+  the survivors and — crucially — reports how confident it is. If the question is about how code
+  <em>flows</em>, the call graph pulls in callers and callees; otherwise that step is skipped, because extra
+  context buries the answer to a narrow question.</li>
+
+  <li><b>Outcome (D).</b> The answer must cite <code>path:line</code>. If confidence was low, or the model
+  produced prose with no citation, the system refuses instead of guessing. Either way the result is saved and
+  streamed back. The next question reuses the same index — ingestion never runs again unless you re-add the
+  repo.</li>
+</ol>
+</div>
+
+</div>

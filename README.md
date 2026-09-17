@@ -98,8 +98,8 @@ app (or `eval_live.py`) to ask many questions against one index.
 
 ### 2. Full web app (backend + frontend)
 
-**Set up `.env`** in the project root. There is no `.env.example` in the
-repo — create `.env` directly with at least:
+**Set up `.env`** in the project root. Copy `.env.example` to `.env` and fill
+it in. At minimum you need:
 
 ```
 OPENAI_API_KEY=sk-...

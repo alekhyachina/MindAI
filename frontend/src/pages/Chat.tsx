@@ -44,7 +44,14 @@ export default function Chat() {
       setMessages([]);
       return;
     }
-    const conv = await api.createConversation(repo.id);
+    // Reuse this repo's most recent conversation rather than always starting
+    // a new one. Creating unconditionally here is what made history look lost
+    // on every login: the old messages were still in the database, but the
+    // page opened against a brand-new empty conversation and never fetched
+    // them. The list is server-filtered to the signed-in user, so this can
+    // only ever resume the caller's own conversation.
+    const existing = await api.listConversations(repo.id);
+    const conv = existing.length > 0 ? existing[0] : await api.createConversation(repo.id);
     setConversation(conv);
     setMessages(await api.getMessages(conv.id));
   }

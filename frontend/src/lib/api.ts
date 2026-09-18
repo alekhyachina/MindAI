@@ -98,6 +98,9 @@ export const api = {
       body: JSON.stringify({ github_url: githubUrl }),
     }),
 
+  listConversations: (repoId: string) =>
+    request<Conversation[]>(`/conversations?repo_id=${encodeURIComponent(repoId)}`),
+
   createConversation: (repoId: string) =>
     request<Conversation>("/conversations", {
       method: "POST",

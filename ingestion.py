@@ -132,6 +132,35 @@ NOISE_FILENAMES = {
     ".DS_Store", "Thumbs.db",
 }
 
+# Credential material. Distinct from NOISE_* above: those are skipped because
+# embedding them is a waste, these because indexing them is a disclosure. A
+# private key or .env committed to a repo would otherwise be chunked, embedded,
+# shipped to an embedding API, stored in Qdrant, and eventually quoted back
+# verbatim (with a citation) to whoever asks the right question. Skipping is
+# the only safe handling — a code-understanding system has no use for the
+# secret's value, and the file's existence is still visible in paths.
+SECRET_EXTENSIONS = {
+    ".pem", ".key", ".p12", ".pfx", ".jks", ".keystore",
+    ".crt", ".cer", ".der", ".csr", ".gpg", ".asc", ".kdbx", ".ppk",
+}
+
+SECRET_FILENAMES = {
+    ".env", ".env.local", ".env.development", ".env.production",
+    ".env.test", ".env.staging", ".envrc",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    ".htpasswd", ".netrc", "_netrc", ".pgpass",
+    "credentials", "credentials.json", "service-account.json",
+    "secrets.yaml", "secrets.yml", "secrets.json",
+    ".npmrc", ".pypirc", ".dockercfg",
+}
+
+# Matched against the lowercased filename, for names that vary around a stem
+# (e.g. "prod.secrets.yaml", "aws_credentials.ini", "my-private-key.txt").
+SECRET_NAME_PATTERNS = (
+    "secret", "credential", "private_key", "privatekey", "private-key",
+    "apikey", "api_key", "passwd", "password",
+)
+
 # Extension -> tree-sitter language identifier (as understood by
 # tree_sitter_language_pack.get_parser).
 EXTENSION_TO_LANGUAGE = {
@@ -289,6 +318,26 @@ def cleanup_clone(path: Path) -> None:
 # Step 2: Noise filtering / file discovery
 # --------------------------------------------------------------------------- #
 
+def _is_secret_file(path: Path) -> bool:
+    """
+    True if `path` looks like credential material that must not be indexed.
+
+    Deliberately errs toward skipping: a false positive costs one unindexed
+    file, a false negative embeds a private key into a vector store and can
+    surface it, quoted and cited, in an answer. `.env.example` and similar
+    template files are allowed through, since their whole purpose is to hold
+    placeholder values rather than real ones.
+    """
+    name = path.name.lower()
+    if name.endswith((".example", ".sample", ".template", ".dist")):
+        return False
+    if name in SECRET_FILENAMES:
+        return True
+    if path.suffix.lower() in SECRET_EXTENSIONS:
+        return True
+    return any(token in name for token in SECRET_NAME_PATTERNS)
+
+
 def discover_source_files(repo_root: Path) -> Iterator[Path]:
     """
     Walk `repo_root`, aggressively pruning noise directories, and yield paths
@@ -307,6 +356,12 @@ def discover_source_files(repo_root: Path) -> Iterator[Path]:
         if path.suffix.lower() in NOISE_EXTENSIONS:
             continue
         if path.name.endswith((".min.js", ".min.css")):
+            continue
+        if _is_secret_file(path):
+            # Logged at info, not debug: knowing a repo shipped credentials is
+            # worth seeing in the ingestion output, even though the contents
+            # never get indexed.
+            logger.info("Skipping credential file (not indexed): %s", path.name)
             continue
         try:
             if path.stat().st_size > MAX_FILE_SIZE_BYTES:

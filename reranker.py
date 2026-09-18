@@ -22,6 +22,17 @@ import cohere
 
 RERANK_MODEL_NAME = "rerank-v3.5"
 
+# Cap on characters sent per candidate document. Reranking 100 candidates at
+# full length shipped ~740 KB per question and measured at 2.37s median;
+# truncating to 2000 chars sent ~195 KB and measured at 1.23s — roughly half
+# the latency of what profiling showed to be the slowest node in the graph.
+# Relevance is decided by whether a chunk is ABOUT the query, which the
+# opening of a chunk establishes: an AST chunk begins with the signature and
+# docstring, and its file path and symbol name are prepended by the caller,
+# so the truncated text keeps every strong signal. Raise it if long chunks
+# start losing to short ones; the only cost is latency.
+RERANK_DOC_CHAR_LIMIT = 2000
+
 
 class CohereReranker:
     """
@@ -57,7 +68,7 @@ class CohereReranker:
                 "Cohere's rerank API reranks one query against many documents, not "
                 "arbitrary (query, doc) pairs — this indicates a caller bug."
             )
-        documents = [doc for _query, doc in pairs]
+        documents = [doc[:RERANK_DOC_CHAR_LIMIT] for _query, doc in pairs]
 
         response = self._client.rerank(
             model=RERANK_MODEL_NAME,

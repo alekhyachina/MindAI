@@ -249,6 +249,28 @@ def create_conversation(
     return conversation
 
 
+@app.get("/conversations", response_model=list[ConversationResponse])
+def list_conversations(
+    repo_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[Conversation]:
+    """
+    The caller's conversations, newest first, optionally narrowed to one repo.
+
+    Without this the client had no way to find a conversation it had already
+    started: only POST /conversations existed, so every page load created a
+    fresh empty one and the user's history — still sitting in the messages
+    table — was never shown again. Filtering by owner_id (not just by repo)
+    is what keeps one user's history out of another's list, matching the
+    ownership check every other conversation route performs.
+    """
+    query = db.query(Conversation).filter(Conversation.owner_id == current_user.id)
+    if repo_id is not None:
+        query = query.filter(Conversation.repo_id == repo_id)
+    return query.order_by(Conversation.created_at.desc()).all()
+
+
 @app.get("/conversations/{conversation_id}/messages", response_model=list[MessageResponse])
 def get_messages(
     conversation_id: str,

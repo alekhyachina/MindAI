@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # --- Auth ---
@@ -34,8 +35,35 @@ class UserResponse(BaseModel):
 
 # --- Repos ---
 
+_GITHUB_REPO_URL = re.compile(
+    r"^https?://(?:www\.)?github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/?$"
+)
+
+
 class IngestRepoRequest(BaseModel):
     github_url: str = Field(min_length=1, max_length=500)
+
+    @field_validator("github_url")
+    @classmethod
+    def must_be_a_github_repo_url(cls, value: str) -> str:
+        """
+        Rejects anything that isn't a plain github.com/<owner>/<repo> URL.
+
+        Without this, any string reached the ingestion background task and
+        became a Repo row that could only ever fail — "localhost:5173" and
+        "github.com/<user>?tab=repositories" (a profile page, not a repo)
+        both got saved that way, cluttering the sidebar with dead entries.
+        Validating here rejects them with a 422 before any row is written.
+        """
+        url = value.strip().rstrip("/")
+        if url.startswith("github.com/"):
+            url = f"https://{url}"
+        if not _GITHUB_REPO_URL.match(url):
+            raise ValueError(
+                "Must be a GitHub repository URL, e.g. "
+                "https://github.com/owner/repo"
+            )
+        return url
 
 
 class RepoResponse(BaseModel):

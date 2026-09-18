@@ -29,6 +29,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, TypedDict
 
 import tiktoken
@@ -192,6 +193,11 @@ class GraphState(TypedDict, total=False):
 
     # rerank output
     reranked_chunks: list[RetrievedChunk]
+    # Top reranker score. NOT a calibrated probability — 0.7 does not mean
+    # "70% confident". It is a relative retrieval-quality signal from one
+    # specific reranker model, only meaningful compared against other scores
+    # from that same model, which is why it is used solely as a threshold for
+    # graph expansion and never surfaced to the user as a confidence figure.
     top_confidence: float
 
     # graph_expand output (optional — only set if the conditional edge fires)
@@ -201,6 +207,7 @@ class GraphState(TypedDict, total=False):
     answer: str
     citations_valid: bool
     refused: bool
+    retry_count: int  # 1 if generation was re-attempted after a validation failure
 
 
 # --------------------------------------------------------------------------- #
@@ -333,24 +340,42 @@ def hybrid_retrieve_node(state: GraphState, deps: PipelineDependencies) -> dict:
     query = state["search_query"]
     collection_name = state["collection_name"]
 
-    dense_vec = deps.dense_embedder.embed_one(query)
-    sparse_vec = next(deps.sparse_model.embed([query]))
+    # Dense embedding is an OpenAI API call and sparse is local CPU work, so
+    # they are independent — running them concurrently costs the slower of the
+    # two instead of their sum. The two Qdrant searches are likewise
+    # independent of each other. This matters most in SERVER mode, where each
+    # search is a network round-trip: profiling against Qdrant Cloud showed
+    # this node at 3.44s versus 0.80s on local disk, almost entirely latency
+    # rather than compute. Local mode is unaffected by the change beyond a
+    # negligible thread hop.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        dense_future = pool.submit(deps.dense_embedder.embed_one, query)
+        sparse_future = pool.submit(lambda: next(deps.sparse_model.embed([query])))
+        dense_vec = dense_future.result()
+        sparse_vec = sparse_future.result()
 
-    dense_hits = deps.qdrant_client.query_points(
-        collection_name=collection_name,
-        query=dense_vec,
-        using=DENSE_VECTOR_NAME,
-        limit=FUSED_CANDIDATE_COUNT,
-        with_payload=True,
-    ).points
+    sparse_query = qmodels.SparseVector(
+        indices=sparse_vec.indices.tolist(), values=sparse_vec.values.tolist()
+    )
 
-    sparse_hits = deps.qdrant_client.query_points(
-        collection_name=collection_name,
-        query=qmodels.SparseVector(indices=sparse_vec.indices.tolist(), values=sparse_vec.values.tolist()),
-        using=SPARSE_VECTOR_NAME,
-        limit=FUSED_CANDIDATE_COUNT,
-        with_payload=True,
-    ).points
+    def _search(vector, using):
+        return deps.qdrant_client.query_points(
+            collection_name=collection_name,
+            query=vector,
+            using=using,
+            limit=FUSED_CANDIDATE_COUNT,
+            with_payload=True,
+        ).points
+
+    # qdrant-client is thread-safe in SERVER mode (stateless HTTP). In LOCAL
+    # mode backend/pipeline_store.py serialises all access behind a process
+    # lock, so the two calls are effectively sequential there and simply
+    # behave as before.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        dense_job = pool.submit(_search, dense_vec, DENSE_VECTOR_NAME)
+        sparse_job = pool.submit(_search, sparse_query, SPARSE_VECTOR_NAME)
+        dense_hits = dense_job.result()
+        sparse_hits = sparse_job.result()
 
     payload_by_id = {}
     for hit in (*dense_hits, *sparse_hits):
@@ -406,14 +431,68 @@ def rerank_node(state: GraphState, deps: PipelineDependencies) -> dict:
     pairs = [(query, f"{c['file_path']} {c['symbol_name']}\n{c['content']}") for c in candidates]
     scores = deps.reranker.predict(pairs)
 
+    # When the question names a file or symbol outright ("what does app.py
+    # do", "explain train_xgboost"), that is the single strongest relevance
+    # signal available — and the cross-encoder largely ignores it, scoring on
+    # prose/content similarity. Observed: for "what does app.py do", the
+    # app.py chunk ranked 15th at 0.024 while unrelated notebook output
+    # scored 0.32, so the one chunk that could answer the question was
+    # crowded out of the context budget and the model refused. Boosting exact
+    # filename/symbol mentions from the ORIGINAL question (not the rewritten
+    # query, which invents plausible-sounding terms like "Flask FastAPI" that
+    # may appear nowhere in the repo) reorders those chunks to the top
+    # without disturbing the relative order of everything else.
+    raw_question = state.get("raw_query") or query
+    mentioned = set(re.findall(r"[\w./-]+\.\w+|\b\w{4,}\b", raw_question.lower()))
+    boosted: list[float] = []
+    for chunk, score in zip(candidates, scores):
+        bonus = 0.0
+        path = chunk["file_path"].lower()
+        basename = path.rsplit("/", 1)[-1]
+        symbol = (chunk.get("symbol_name") or "").lower()
+        if basename in mentioned or path in mentioned:
+            bonus += 1.0
+        if symbol and symbol in mentioned:
+            bonus += 1.0
+        boosted.append(float(score) + bonus)
+    scores = boosted
+
     scored = list(zip(candidates, scores))
     scored.sort(key=lambda pair: pair[1], reverse=True)
 
-    top_n = scored[:RERANK_TOP_N]
+    # Cap how many chunks any single file may contribute before other files
+    # get a slot. Notebooks are chunked into heavily overlapping line windows
+    # (e.g. 1281-1380, 1361-1460, 1441-1540 ...), which score near-identically
+    # and, unconstrained, filled 14 of 20 context slots from ONE notebook —
+    # crowding out the .py modules that answer the question more directly and
+    # burning the token budget on near-duplicate text. Filling per-file quotas
+    # in score order keeps the best chunks while guaranteeing other files are
+    # represented; the cap is lifted only if too few files exist to fill
+    # RERANK_TOP_N, so small repos still use the full budget.
+    per_file_cap = max(2, RERANK_TOP_N // 4)
+    kept: list[tuple[dict, float]] = []
+    overflow: list[tuple[dict, float]] = []
+    file_counts: dict[str, int] = {}
+    for chunk, score in scored:
+        path = chunk["file_path"]
+        if file_counts.get(path, 0) < per_file_cap:
+            kept.append((chunk, score))
+            file_counts[path] = file_counts.get(path, 0) + 1
+        else:
+            overflow.append((chunk, score))
+        if len(kept) >= RERANK_TOP_N:
+            break
+    if len(kept) < RERANK_TOP_N:
+        kept.extend(overflow[: RERANK_TOP_N - len(kept)])
+
+    top_n = kept
     reranked_chunks = [{**chunk, "score": float(score)} for chunk, score in top_n]
     top_confidence = float(top_n[0][1]) if top_n else 0.0
 
-    logger.info("Rerank: kept top %d / %d, top_confidence=%.4f", len(reranked_chunks), len(candidates), top_confidence)
+    logger.info(
+        "Rerank: kept top %d / %d from %d distinct files, top_confidence=%.4f",
+        len(reranked_chunks), len(candidates), len(file_counts), top_confidence,
+    )
     return {"reranked_chunks": reranked_chunks, "top_confidence": top_confidence}
 
 
@@ -514,10 +593,16 @@ path and the line number(s), never brackets or parentheses for the numbers.
    INCORRECT: The app uses FastAPI (see README, lines 12-15).
    Use only paths and line numbers that appear in the provided context blocks — never invent one, \
 and never shorten or abbreviate a file name in a citation.
-2. If the provided context does NOT contain enough information to answer the question confidently, \
-you MUST refuse. Do not guess, speculate, or answer from general programming knowledge. Respond \
-with exactly: "I don't have enough information in the retrieved context to answer this confidently." \
-optionally followed by one sentence naming what's missing.
+2. Refuse ONLY when the context contains nothing relevant to the question. Respond with exactly: \
+"I don't have enough information in the retrieved context to answer this confidently." optionally \
+followed by one sentence naming what's missing. Do not guess, speculate, or answer from general \
+programming knowledge about code you cannot see.
+   PARTIAL context is NOT grounds for refusal. If the context answers the question even partly, \
+ANSWER with what is actually there, cite it, and state briefly what you could not determine. A \
+context block for a file IS evidence about that file: if asked what `app.py` does and its code is \
+shown, describe what that code does — do not refuse because you cannot see the whole file. \
+Similarly, if asked to list files, list the ones present in the context and say the list may be \
+incomplete. Refusing when relevant code IS present is a failure, exactly as harmful as guessing.
 3. Do not fabricate file paths, function names, or line numbers under any circumstances.
 4. Be precise and concise. Prefer direct quotes/paraphrases of the actual code over generalization."""
 
@@ -544,10 +629,21 @@ def _assemble_context(chunks: list[RetrievedChunk], token_budget: int) -> str:
 
 def _validate_citations(answer: str, available_chunks: list[RetrievedChunk]) -> bool:
     """
-    Confirms every citation in the answer references a path present in the
-    context actually given to the model. This does not guarantee semantic
-    correctness, but it does catch fabricated file paths — the most common
-    hallucination failure mode for this task.
+    Confirms every citation in the answer names a path AND a line range that
+    were actually in the context given to the model.
+
+    What this guarantees, precisely — the distinction matters, because it is
+    easy to overstate:
+      - Citation existence: the cited file was really retrieved.      CHECKED
+      - Citation plausibility: the cited lines overlap a real chunk.  CHECKED
+      - Citation format: `path:start-end`, with a lenient fallback.   CHECKED
+      - Claim support: that those lines actually SAY what the answer
+        claims they say.                                          NOT CHECKED
+
+    So this catches fabricated sources — invented files and invented line
+    numbers, the most common hallucination modes here — but it cannot catch a
+    claim that misreads real code it correctly cited. Faithfulness of that
+    kind is measured separately by the DeepEval harness, not enforced here.
 
     Checks the strict `path:line` format first; falls back to the lenient
     `path[line]` pattern only if the strict pattern found nothing. This is
@@ -568,19 +664,87 @@ def _validate_citations(answer: str, available_chunks: list[RetrievedChunk]) -> 
     available_paths = {c["file_path"] for c in available_chunks}
     available_basenames = {p.rsplit("/", 1)[-1].rsplit(".", 1)[0] for p in available_paths}
 
+    # Paths containing spaces ("notebooks/Invoice Flagging.ipynb") cannot be
+    # captured by CITATION_PATTERN, whose character class excludes spaces —
+    # it matches only the trailing "Flagging.ipynb", which is not in
+    # available_paths, so a CORRECT answer citing a real retrieved notebook
+    # was rejected and replaced with REFUSAL_TEXT. That silently broke every
+    # question whose answer lived in a space-named file. Widening the regex
+    # instead is not viable: with spaces allowed, the class is greedy across
+    # ordinary prose ("... see Invoice Flagging.ipynb:12" would swallow
+    # preceding words), so boundaries become ambiguous. Checking the
+    # retrieved paths directly is unambiguous — a citation is grounded if
+    # the answer mentions a real path followed by ":<line>", which is
+    # exactly the contract the system prompt asks for.
+    def _cited_space_paths() -> list[str]:
+        found = []
+        for path in available_paths:
+            if " " not in path:
+                continue
+            if re.search(re.escape(path) + r":\d+", answer):
+                found.append(path)
+        return found
+
     def _path_is_grounded(path: str) -> bool:
         if path in available_paths:
             return True
         basename = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
         return basename in available_basenames
 
+    space_path_citations = _cited_space_paths()
+
+    # Line ranges that were actually supplied, per path. A citation naming a
+    # real retrieved file but inventing line numbers (e.g. "config.py:900-950"
+    # when only lines 1-40 were in context) passes a path-only check while
+    # pointing at code the model never saw — the citation looks verifiable and
+    # is not. Ranges are collected per basename as well, because path matching
+    # already tolerates a dropped directory or extension.
+    ranges_by_key: dict[str, list[tuple[int, int]]] = {}
+    for chunk in available_chunks:
+        span = (int(chunk["start_line"]), int(chunk["end_line"]))
+        path = chunk["file_path"]
+        for key in (path, path.rsplit("/", 1)[-1], path.rsplit("/", 1)[-1].rsplit(".", 1)[0]):
+            ranges_by_key.setdefault(key, []).append(span)
+
+    def _lines_are_grounded(path: str, start: str, end: str | None) -> bool:
+        keys = (path, path.rsplit("/", 1)[-1], path.rsplit("/", 1)[-1].rsplit(".", 1)[0])
+        spans = next((ranges_by_key[k] for k in keys if k in ranges_by_key), None)
+        if not spans:
+            return True  # path grounding is handled separately; don't double-fail
+        cited_start = int(start)
+        cited_end = int(end) if end else cited_start
+        # Overlap, not containment: a model summarising one chunk often cites a
+        # slightly wider or narrower span than the chunk's exact boundaries,
+        # which is a paraphrase of a real source rather than an invention.
+        return any(cited_start <= s_end and cited_end >= s_start for s_start, s_end in spans)
+
     citations = CITATION_PATTERN.findall(answer)
     if citations:
-        return all(_path_is_grounded(path) for path, _start, _end in citations)
+        # A citation to a space-containing path yields a truncated capture
+        # (the tail after the last space). Treat such a capture as grounded
+        # when it is the tail of a real retrieved path that the answer cited
+        # in full — otherwise the fragment fails the membership check and
+        # discards an answer that is genuinely grounded.
+        space_tails = {p.rsplit(" ", 1)[-1] for p in space_path_citations}
+        for path, start, end in citations:
+            if not (_path_is_grounded(path) or path in space_tails):
+                return False
+            if not _lines_are_grounded(path, start, end):
+                logger.warning(
+                    "Citation %s:%s-%s names a retrieved file but a line range that "
+                    "was never in context.", path, start, end or start,
+                )
+                return False
+        return True
 
     lenient_citations = _LENIENT_CITATION_PATTERN.findall(answer)
     if lenient_citations:
         return all(_path_is_grounded(path) for path, _start, _end in lenient_citations)
+
+    # A citation to a space-containing path may not match either regex at
+    # all; it is still a valid, grounded citation.
+    if space_path_citations:
+        return True
 
     # No citation in either format is only acceptable if the model refused.
     return False
@@ -592,7 +756,35 @@ REFUSAL_TEXT = "I don't have enough information in the retrieved context to answ
 def generate_node(state: GraphState, deps: PipelineDependencies) -> dict:
     reranked = state.get("reranked_chunks", [])
     expanded = state.get("expanded_chunks", [])
-    all_chunks = reranked + [c for c in expanded if c["chunk_id"] not in {r["chunk_id"] for r in reranked}]
+    new_expanded = [c for c in expanded if c["chunk_id"] not in {r["chunk_id"] for r in reranked}]
+
+    # Score the graph-expanded chunks before they reach the context. They are
+    # pulled in by call-graph adjacency, not by relevance, so previously they
+    # were appended unscored and competed for the token budget purely by
+    # arriving later — a caller three hops from the question could displace a
+    # reranked chunk. Scoring them against the same query puts them in the
+    # same ranking as everything else; they still get in, but on merit and in
+    # a sensible order. Only runs when expansion actually fired (the usual
+    # path has nothing to score, so it costs nothing).
+    if new_expanded:
+        try:
+            pairs = [
+                (state["search_query"], f"{c['file_path']} {c['symbol_name']}\n{c['content']}")
+                for c in new_expanded
+            ]
+            scores = deps.reranker.predict(pairs)
+            new_expanded = [
+                {**c, "score": float(s)}
+                for c, s in sorted(zip(new_expanded, scores), key=lambda p: p[1], reverse=True)
+            ]
+            logger.info("Reranked %d graph-expanded chunks before context assembly.", len(new_expanded))
+        except Exception as exc:
+            # Reranking expanded chunks is an ordering improvement, not a
+            # correctness requirement — if the reranker call fails, keep the
+            # adjacency order rather than dropping structurally relevant code.
+            logger.warning("Could not rerank expanded chunks (%s); keeping call-graph order.", exc)
+
+    all_chunks = reranked + new_expanded
 
     # Pre-generation gate: only checks whether retrieval found ANY
     # candidates at all — see the gate-history comment above
@@ -637,13 +829,55 @@ def generate_node(state: GraphState, deps: PipelineDependencies) -> dict:
     is_refusal = REFUSAL_TEXT.lower() in answer.lower()
     citations_valid = True if is_refusal else _validate_citations(answer, all_chunks)
 
+    # One retry before refusing. A validation failure usually means the model
+    # got the citation FORMAT wrong or cited a path it only half-copied — not
+    # that the context lacked the answer. Refusing on the first failure threw
+    # away recoverable answers (that is exactly how the space-in-filename bug
+    # manifested: correct answers replaced by refusals). Re-asking once, with
+    # the specific mistake named and the valid paths listed, is cheap and
+    # recovers those. Capped at one attempt so a persistently ungroundable
+    # question cannot loop: second failure falls through to the refusal below.
+    if not citations_valid:
+        logger.info("Citation validation failed; retrying once. First answer was: %r", answer)
+        allowed = sorted({c["file_path"] for c in all_chunks})
+        retry_prompt = (
+            f"{user_prompt}\n\n"
+            "Your previous answer cited a file path that was NOT in the context above, "
+            "so it was rejected. Cite ONLY these paths, copied exactly, each followed by "
+            "a colon and the line numbers:\n"
+            + "\n".join(f"  {p}" for p in allowed)
+            + "\n\nAnswer again, or reply with the exact refusal sentence if the context "
+              "genuinely does not contain the answer."
+        )
+        retry_response = deps.openai_client.chat.completions.create(
+            model=GENERATION_MODEL,
+            messages=[
+                {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
+                {"role": "user", "content": retry_prompt},
+            ],
+            temperature=0.0,
+            max_tokens=2000,
+            **generation_extra_kwargs,
+        )
+        retry_answer = (retry_response.choices[0].message.content or "").strip()
+        retry_is_refusal = REFUSAL_TEXT.lower() in retry_answer.lower()
+        if retry_is_refusal or _validate_citations(retry_answer, all_chunks):
+            logger.info("Retry produced a %s answer.", "grounded" if not retry_is_refusal else "refusing")
+            return {
+                "answer": retry_answer,
+                "citations_valid": True,
+                "refused": retry_is_refusal,
+                "retry_count": 1,
+            }
+        logger.warning("Retry also failed validation; refusing. Retry answer was: %r", retry_answer)
+
     if not citations_valid:
         # Fail closed: an answer with an unverifiable citation is worse than
         # a refusal, since it looks authoritative but may be fabricated.
-        logger.warning("Citation validation failed — replacing answer with refusal. Raw answer was: %r", answer)
-        return {"answer": REFUSAL_TEXT, "citations_valid": True, "refused": True}
+        logger.warning("Citation validation failed — replacing answer with refusal.")
+        return {"answer": REFUSAL_TEXT, "citations_valid": True, "refused": True, "retry_count": 1}
 
-    return {"answer": answer, "citations_valid": citations_valid, "refused": is_refusal}
+    return {"answer": answer, "citations_valid": citations_valid, "refused": is_refusal, "retry_count": 0}
 
 
 # --------------------------------------------------------------------------- #
